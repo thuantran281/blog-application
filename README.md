@@ -22,7 +22,7 @@ A full-stack blog platform with authentication, publishing workflows, comments, 
 | Server | Node.js, Express 5, TypeScript, Zod |
 | Database | PostgreSQL |
 | Auth | JWT, bcryptjs |
-| Testing | Vitest, Supertest, Newman, Playwright |
+| Testing | Vitest, Supertest, Newman |
 | CI | GitHub Actions |
 
 ## Project structure

@@ -7,10 +7,6 @@ import { logger } from './lib/logger.js'
 let server: Server | undefined
 let shuttingDown = false
 
-function serializeStartupError(error: unknown) {
-  return logger.serializeError(error)
-}
-
 function shutdown(signal: string) {
   if (shuttingDown) {
     return
@@ -33,7 +29,7 @@ function shutdown(signal: string) {
   server.close((error) => {
     if (error) {
       logger.error('HTTP server failed to close cleanly', {
-        error: serializeStartupError(error),
+        error: logger.serializeError(error),
       })
       process.exitCode = 1
     }
@@ -42,7 +38,7 @@ function shutdown(signal: string) {
       .end()
       .catch((poolError: unknown) => {
         logger.error('Database pool failed to close cleanly', {
-          error: serializeStartupError(poolError),
+          error: logger.serializeError(poolError),
         })
         process.exitCode = 1
       })
@@ -69,23 +65,23 @@ async function start() {
   process.once('SIGINT', () => shutdown('SIGINT'))
   process.once('SIGTERM', () => shutdown('SIGTERM'))
   process.once('uncaughtException', (error) => {
-    logger.error('Uncaught exception', { error: serializeStartupError(error) })
+    logger.error('Uncaught exception', { error: logger.serializeError(error) })
     shutdown('uncaughtException')
   })
   process.once('unhandledRejection', (reason) => {
-    logger.error('Unhandled rejection', { error: serializeStartupError(reason) })
+    logger.error('Unhandled rejection', { error: logger.serializeError(reason) })
     shutdown('unhandledRejection')
   })
 }
 
 start().catch(async (error: unknown) => {
-  logger.error('Failed to start server', { error: serializeStartupError(error) })
+  logger.error('Failed to start server', { error: logger.serializeError(error) })
 
   try {
     await pool.end()
   } catch (poolError) {
     logger.error('Database pool failed to close after startup error', {
-      error: serializeStartupError(poolError),
+      error: logger.serializeError(poolError),
     })
   }
 
