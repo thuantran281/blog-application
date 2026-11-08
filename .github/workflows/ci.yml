@@ -1,0 +1,135 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: blog_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      NODE_ENV: test
+      PORT: 3000
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_NAME: blog_db
+      TEST_DB_NAME: blog_db_test
+      JWT_SECRET: ci-only-jwt-secret-at-least-32-characters-long
+      JWT_EXPIRES_IN: 7d
+      CORS_ORIGINS: http://localhost:4173
+      ADMIN_USERNAME: postman_admin
+      ADMIN_EMAIL: postman_admin@example.com
+      ADMIN_PASSWORD: password123
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            server/package-lock.json
+            client/package-lock.json
+
+      - name: Install server dependencies
+        working-directory: server
+        run: npm ci
+
+      - name: Install client dependencies
+        working-directory: client
+        run: npm ci
+
+      - name: Check server formatting
+        working-directory: server
+        run: npm run format:check
+
+      - name: Typecheck server
+        working-directory: server
+        run: npm run typecheck
+
+      - name: Run server tests
+        working-directory: server
+        run: npm test
+
+      - name: Typecheck client
+        working-directory: client
+        run: npm run typecheck
+
+      - name: Lint client
+        working-directory: client
+        run: npm run lint
+
+      - name: Build client
+        working-directory: client
+        run: npm run build
+
+      - name: Build server
+        working-directory: server
+        run: npm run build
+
+      - name: Migrate application database
+        working-directory: server
+        run: npm run db:migrate
+
+      - name: Run API smoke tests
+        working-directory: server
+        env:
+          NODE_ENV: production
+        run: |
+          set -euo pipefail
+          npm run seed-admin
+          node dist/server.js > /tmp/blog-server.log 2>&1 &
+          SERVER_PID=$!
+
+          cleanup() {
+            kill "$SERVER_PID" 2>/dev/null || true
+            wait "$SERVER_PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://localhost:3000/health/ready > /dev/null; then
+              break
+            fi
+
+            if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+              cat /tmp/blog-server.log
+              exit 1
+            fi
+
+            sleep 1
+          done
+
+          curl --fail --silent http://localhost:3000/health/ready > /dev/null
+          npm run test:api

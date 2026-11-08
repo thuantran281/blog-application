@@ -1,0 +1,1182 @@
+{
+  "info": {
+    "_postman_id": "b1a7f3c2-6d4e-4f8a-9c1b-2e5d7a0f3b6c",
+    "name": "Blog API",
+    "description": "MVP collection for the Blog API. Run the folders in order (Auth -> Categories -> Tags -> Posts -> Comments -> Cleanup). Register requests generate unique credentials; tokens and IDs are stored as collection variables. Taxonomy writes require an admin: seed one with npm run seed-admin using the adminEmail/adminPassword collection variables before running.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "accessToken", "value": "" },
+    { "key": "secondaryToken", "value": "" },
+    { "key": "userId", "value": "" },
+    { "key": "secondaryUserId", "value": "" },
+    { "key": "authEmail", "value": "" },
+    { "key": "authUsername", "value": "" },
+    { "key": "authPassword", "value": "password123" },
+    { "key": "secondaryEmail", "value": "" },
+    { "key": "secondaryUsername", "value": "" },
+    { "key": "secondaryPassword", "value": "password123" },
+    { "key": "adminUsername", "value": "postman_admin" },
+    { "key": "adminEmail", "value": "postman_admin@example.com" },
+    { "key": "adminPassword", "value": "password123" },
+    { "key": "adminToken", "value": "" },
+    { "key": "categoryId", "value": "" },
+    { "key": "categorySlug", "value": "" },
+    { "key": "categoryName", "value": "" },
+    { "key": "categoryNameUpdated", "value": "" },
+    { "key": "tagId", "value": "" },
+    { "key": "tagSlug", "value": "" },
+    { "key": "tagName", "value": "" },
+    { "key": "tagNameUpdated", "value": "" },
+    { "key": "postId", "value": "" },
+    { "key": "postSlug", "value": "" },
+    { "key": "postTitle", "value": "" },
+    { "key": "draftId", "value": "" },
+    { "key": "draftSlug", "value": "" },
+    { "key": "draftTitle", "value": "" },
+    { "key": "commentId", "value": "" },
+    { "key": "guestCommentId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health check",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200))",
+                  "pm.test('reports running', () => pm.expect(pm.response.json().message).to.include('running'))"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "host": ["{{baseUrl}}"],
+              "path": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const stamp = Date.now()",
+                  "pm.collectionVariables.set('authEmail', `postman_${stamp}@example.com`)",
+                  "pm.collectionVariables.set('authUsername', `postman_${stamp}`)",
+                  "pm.collectionVariables.set('authPassword', 'password123')"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201))",
+                  "const body = pm.response.json()",
+                  "pm.collectionVariables.set('accessToken', body.data.token)",
+                  "pm.collectionVariables.set('userId', body.data.user.id)",
+                  "pm.test('role is member', () => pm.expect(body.data.user.role).to.eql('member'))",
+                  "pm.test('no password hash leaked', () => pm.expect(body.data.user).to.not.have.property('password_hash'))"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"username\":\"{{authUsername}}\",\"email\":\"{{authEmail}}\",\"password\":\"{{authPassword}}\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Register secondary user",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const stamp = Date.now()",
+                  "pm.collectionVariables.set('secondaryEmail', `postman2_${stamp}@example.com`)",
+                  "pm.collectionVariables.set('secondaryUsername', `postman2_${stamp}`)",
+                  "pm.collectionVariables.set('secondaryPassword', 'password123')"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201))",
+                  "const body = pm.response.json()",
+                  "pm.collectionVariables.set('secondaryToken', body.data.token)",
+                  "pm.collectionVariables.set('secondaryUserId', body.data.user.id)"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"username\":\"{{secondaryUsername}}\",\"email\":\"{{secondaryEmail}}\",\"password\":\"{{secondaryPassword}}\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200))",
+                  "const body = pm.response.json()",
+                  "pm.collectionVariables.set('accessToken', body.data.token)"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"{{authEmail}}\",\"password\":\"{{authPassword}}\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Admin login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200))",
+                  "const body = pm.response.json()",
+                  "pm.collectionVariables.set('adminToken', body.data.token)",
+                  "pm.test('returns an admin token', () => pm.expect(body.data.user.role).to.eql('admin'))"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"{{adminEmail}}\",\"password\":\"{{adminPassword}}\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Me",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200))",
+                  "pm.test('returns current user', () => pm.expect(pm.response.json().data.email).to.eql(pm.collectionVariables.get('authEmail')))"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "me"]
+            }
+          }
+        },
+        {
+          "name": "Me without token (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('401 Unauthorized', () => pm.response.to.have.status(401))"]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "me"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "item": [
+        {
+          "name": "Create category as member (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('403 Forbidden', () => pm.response.to.have.status(403))"]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Postman Member Category\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "categories"]
+            }
+          }
+        },
+        {
+          "name": "Create category",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('categoryName', `Postman Category ${Date.now()}`)"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201))",
+                  "const body = pm.response.json()",
+                  "pm.collectionVariables.set('categoryId', body.data.id)",
+                  "pm.collectionVariables.set('categorySlug', body.data.slug)"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"{{categoryName}}\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "categories"]
+            }
+          }
+        },
+        {
+          "name": "Update category",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('categoryNameUpdated', `Postman Category Updated ${Date.now()}`)"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200))",
+                  "pm.collectionVariables.set('categorySlug', pm.response.json().data.slug)"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"{{categoryNameUpdated}}\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/categories/{{categoryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "categories", "{{categoryId}}"]
+            }
+          }
+        },
+        {
+          "name": "List categories",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200))",
+                  "pm.test('returns an array', () => pm.expect(pm.response.json().data).to.be.an('array'))"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "categories"]
+            }
+          }
+        },
+        {
+          "name": "Get category by slug",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200))",
+                  "pm.test('matches id', () => pm.expect(pm.response.json().data.id).to.eql(pm.collectionVariables.get('categoryId')))"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/categories/{{categorySlug}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "categories", "{{categorySlug}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tags",
+      "item": [
+        {
+          "name": "Create tag as member (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('403 Forbidden', () => pm.response.to.have.status(403))"]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Postman Member Tag\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/tags",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tags"]
+            }
+          }
+        },
+        {
+          "name": "Create tag",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.collectionVariables.set('tagName', `postman-tag-${Date.now()}`)"]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201))",
+                  "const body = pm.response.json()",
+                  "pm.collectionVariables.set('tagId', body.data.id)",
+                  "pm.collectionVariables.set('tagSlug', body.data.slug)"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"{{tagName}}\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/tags",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tags"]
+            }
+          }
+        },
+        {
+          "name": "Update tag",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('tagNameUpdated', `postman-tag-updated-${Date.now()}`)"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200))",
+                  "pm.collectionVariables.set('tagSlug', pm.response.json().data.slug)"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"{{tagNameUpdated}}\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/tags/{{tagId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tags", "{{tagId}}"]
+            }
+          }
+        },
+        {
+          "name": "List tags",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200))",
+                  "pm.test('returns an array', () => pm.expect(pm.response.json().data).to.be.an('array'))"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/tags",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tags"]
+            }
+          }
+        },
+        {
+          "name": "Get tag by slug",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200))",
+                  "pm.test('matches id', () => pm.expect(pm.response.json().data.id).to.eql(pm.collectionVariables.get('tagId')))"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/tags/{{tagSlug}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tags", "{{tagSlug}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Posts",
+      "item": [
+        {
+          "name": "Create post without token (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('401 Unauthorized', () => pm.response.to.have.status(401))"]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"title\":\"Nope\",\"content\":\"Nope\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/posts",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "posts"]
+            }
+          }
+        },
+        {
+          "name": "Create post",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.collectionVariables.set('postTitle', `Postman Post ${Date.now()}`)"]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201))",
+                  "const body = pm.response.json()",
+                  "pm.collectionVariables.set('postId', body.data.id)",
+                  "pm.collectionVariables.set('postSlug', body.data.slug)",
+                  "pm.test('category attached', () => pm.expect(body.data.category.id).to.eql(pm.collectionVariables.get('categoryId')))",
+                  "pm.test('tag attached', () => pm.expect(body.data.tags).to.have.lengthOf(1))",
+                  "pm.test('custom byline attached', () => pm.expect(body.data.author_name).to.eql('Postman Byline'))"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"title\":\"{{postTitle}}\",\"content\":\"Created from Postman\",\"excerpt\":\"Postman smoke test\",\"status\":\"published\",\"categoryId\":\"{{categoryId}}\",\"tagIds\":[\"{{tagId}}\"],\"displayName\":\"Postman Byline\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/posts",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "posts"]
+            }
+          }
+        },
+        {
+          "name": "List posts",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200))",
+                  "pm.test('has pagination meta', () => pm.expect(pm.response.json().meta).to.have.property('total'))",
+                  "pm.test('includes author name', () => pm.expect(pm.response.json().data[0]).to.have.property('author_name'))"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/posts?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "posts"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Filter by category",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200))",
+                  "pm.test('finds the post', () => pm.expect(pm.response.json().data.some((post) => post.id === pm.collectionVariables.get('postId'))).to.be.true)"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/posts?category={{categorySlug}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "posts"],
+              "query": [{ "key": "category", "value": "{{categorySlug}}" }]
+            }
+          }
+        },
+        {
+          "name": "Filter by tag",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200))",
+                  "pm.test('finds the post', () => pm.expect(pm.response.json().data.some((post) => post.id === pm.collectionVariables.get('postId'))).to.be.true)"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/posts?tag={{tagSlug}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "posts"],
+              "query": [{ "key": "tag", "value": "{{tagSlug}}" }]
+            }
+          }
+        },
+        {
+          "name": "Get post by slug",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200))",
+                  "pm.test('matches id', () => pm.expect(pm.response.json().data.id).to.eql(pm.collectionVariables.get('postId')))"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/posts/{{postSlug}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "posts", "{{postSlug}}"]
+            }
+          }
+        },
+        {
+          "name": "List my posts",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('200 OK', () => pm.response.to.have.status(200))"]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/posts/mine?page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "posts", "mine"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update post",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200))",
+                  "pm.test('content updated', () => pm.expect(pm.response.json().data.content).to.eql('Updated from Postman'))",
+                  "pm.test('byline can be made anonymous', () => pm.expect(pm.response.json().data.author_name).to.be.null)"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"content\":\"Updated from Postman\",\"displayName\":null}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/posts/{{postId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "posts", "{{postId}}"]
+            }
+          }
+        },
+        {
+          "name": "Create draft",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.collectionVariables.set('draftTitle', `Postman Draft ${Date.now()}`)"]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201))",
+                  "const body = pm.response.json()",
+                  "pm.collectionVariables.set('draftId', body.data.id)",
+                  "pm.collectionVariables.set('draftSlug', body.data.slug)",
+                  "pm.test('is a draft', () => pm.expect(body.data.status).to.eql('draft'))"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"title\":\"{{draftTitle}}\",\"content\":\"Draft content\",\"status\":\"draft\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/posts",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "posts"]
+            }
+          }
+        },
+        {
+          "name": "Get draft as owner",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('200 OK', () => pm.response.to.have.status(200))"]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/posts/{{draftSlug}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "posts", "{{draftSlug}}"]
+            }
+          }
+        },
+        {
+          "name": "Get draft anonymously (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('404 Not Found', () => pm.response.to.have.status(404))"]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/posts/{{draftSlug}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "posts", "{{draftSlug}}"]
+            }
+          }
+        },
+        {
+          "name": "Publish draft",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200))",
+                  "pm.test('now published', () => pm.expect(pm.response.json().data.status).to.eql('published'))"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"status\":\"published\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/posts/{{draftId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "posts", "{{draftId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Comments",
+      "item": [
+        {
+          "name": "List comments",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200))",
+                  "pm.test('has pagination meta', () => pm.expect(pm.response.json().meta).to.have.property('total'))"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/posts/{{postSlug}}/comments?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "posts", "{{postSlug}}", "comments"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create guest comment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201))",
+                  "const body = pm.response.json()",
+                  "pm.collectionVariables.set('guestCommentId', body.data.id)",
+                  "pm.test('is a guest comment', () => pm.expect(body.data.user_id).to.be.null)"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"content\":\"Guest comment from Postman\",\"guestName\":\"Postman Guest\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/posts/{{postSlug}}/comments",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "posts", "{{postSlug}}", "comments"]
+            }
+          }
+        },
+        {
+          "name": "Create member comment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201))",
+                  "const body = pm.response.json()",
+                  "pm.collectionVariables.set('commentId', body.data.id)",
+                  "pm.test('uses the user identity', () => pm.expect(body.data.user_id).to.eql(pm.collectionVariables.get('userId')))"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"content\":\"Member comment from Postman\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/posts/{{postSlug}}/comments",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "posts", "{{postSlug}}", "comments"]
+            }
+          }
+        },
+        {
+          "name": "Delete own comment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('204 No Content', () => pm.response.to.have.status(204))"]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/comments/{{commentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "comments", "{{commentId}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete guest comment as member (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('403 Forbidden', () => pm.response.to.have.status(403))"]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/comments/{{guestCommentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "comments", "{{guestCommentId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cleanup",
+      "item": [
+        {
+          "name": "Delete draft",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('204 No Content', () => pm.response.to.have.status(204))"]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/posts/{{draftId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "posts", "{{draftId}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete post",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('204 No Content', () => pm.response.to.have.status(204))"]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/posts/{{postId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "posts", "{{postId}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete category",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('204 No Content', () => pm.response.to.have.status(204))"]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/categories/{{categoryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "categories", "{{categoryId}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete tag",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('204 No Content', () => pm.response.to.have.status(204))"]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/tags/{{tagId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tags", "{{tagId}}"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
