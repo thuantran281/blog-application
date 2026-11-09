@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs'
+import path from 'node:path'
 import cors from 'cors'
 import express from 'express'
 import helmet from 'helmet'
@@ -26,6 +28,10 @@ function isAllowedOrigin(origin: string | undefined) {
 }
 
 const app = express()
+
+const clientDistPath = env.CLIENT_DIST_PATH ? path.resolve(env.CLIENT_DIST_PATH) : undefined
+const clientBuildPath =
+  clientDistPath && existsSync(path.join(clientDistPath, 'index.html')) ? clientDistPath : undefined
 
 if (env.TRUST_PROXY) {
   app.set('trust proxy', 1)
@@ -64,7 +70,12 @@ app.get('/health/ready', async (req, res) => {
   }
 })
 
-app.get('/', async (req, res) => {
+app.get('/', async (req, res, next) => {
+  if (clientBuildPath) {
+    next()
+    return
+  }
+
   try {
     const result = await pool.query<{ now: Date }>('SELECT NOW()')
     res.json({ message: 'Blog API is running!', db_time: result.rows[0]?.now })
@@ -82,6 +93,22 @@ app.use('/api/categories', categoryRoutes)
 app.use('/api/tags', tagRoutes)
 app.use('/api/posts', postRoutes)
 app.use('/api/comments', commentRoutes)
+
+if (clientBuildPath) {
+  app.use(express.static(clientBuildPath, { index: false }))
+  app.use((req, res, next) => {
+    if (req.method !== 'GET' || req.path.startsWith('/api') || req.path.startsWith('/health')) {
+      next()
+      return
+    }
+
+    res.sendFile(path.join(clientBuildPath, 'index.html'), (error) => {
+      if (error) {
+        next(error)
+      }
+    })
+  })
+}
 
 app.use(notFoundHandler)
 app.use(errorHandler)

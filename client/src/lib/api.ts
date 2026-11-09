@@ -14,7 +14,10 @@ import type {
   UpdatePostInput,
 } from '../types'
 
-const API_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000').replace(/\/+$/, '')
+const API_URL = (
+  import.meta.env.VITE_API_URL ??
+  (import.meta.env.PROD ? '' : 'http://localhost:3000')
+).replace(/\/+$/, '')
 const TOKEN_KEY = 'blog-api-token'
 
 export class ApiError extends Error {

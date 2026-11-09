@@ -105,6 +105,14 @@ npm run promote-admin -- user@example.com
 
 The promoted user must log in again to receive a token with the `admin` role.
 
+To reset a user's password locally:
+
+```powershell
+npm run reset-password -- user@example.com
+```
+
+You will be prompted for the new password twice. Existing JWT sessions remain valid until they expire.
+
 ### 3. Start the client
 
 In a second terminal:
@@ -144,6 +152,7 @@ VITE_API_URL=http://localhost:3000
 | `JWT_EXPIRES_IN` | No | `7d` | Token lifetime |
 | `CORS_ORIGINS` | Production | local dev origins | Comma-separated allowed browser origins |
 | `JSON_BODY_LIMIT` | No | `100kb` | Maximum JSON request body size |
+| `CLIENT_DIST_PATH` | No | - | Serve the built client from this directory |
 | `ADMIN_USERNAME` | Seed only | - | Admin username for `seed-admin` |
 | `ADMIN_EMAIL` | Seed only | - | Admin email for `seed-admin` |
 | `ADMIN_PASSWORD` | Seed only | - | Admin password for `seed-admin` |
@@ -152,7 +161,7 @@ VITE_API_URL=http://localhost:3000
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
-| `VITE_API_URL` | No | `http://localhost:3000` | Backend API base URL |
+| `VITE_API_URL` | No | Dev: `http://localhost:3000` | Backend API base URL; production builds use same-origin by default |
 
 ## Commands
 
@@ -169,6 +178,7 @@ VITE_API_URL=http://localhost:3000
 | `npm run db:migrate` | Apply pending migrations |
 | `npm run seed-admin` | Create or reset an admin from `ADMIN_*` variables |
 | `npm run promote-admin -- <email-or-username>` | Promote an existing user |
+| `npm run reset-password -- <email-or-username>` | Set a new password for an existing user |
 | `npm test` | Run server tests |
 | `npm run test:watch` | Run tests in watch mode |
 | `npm run test:api` | Run the Newman API collection against a running server |
@@ -187,7 +197,7 @@ VITE_API_URL=http://localhost:3000
 
 | Method | Endpoint | Access |
 | --- | --- | --- |
-| `GET` | `/` | Public database check |
+| `GET` | `/` | Public database check, or SPA when `CLIENT_DIST_PATH` is set |
 | `GET` | `/health/live` | Public liveness check |
 | `GET` | `/health/ready` | Public readiness check |
 | `POST` | `/api/auth/register` | Public |
@@ -248,7 +258,52 @@ Before running Newman, seed an admin whose credentials match the `adminEmail` an
 - Starts the production build
 - Runs Newman API smoke tests
 
+On pushes to `main`, the `deploy-staging` job deploys to Fly.io after the test job passes. It requires a `FLY_API_TOKEN` repository secret.
+
 The workflow only runs after the repository is pushed to GitHub.
+
+## Staging deployment on Fly.io
+
+The repository includes a multi-stage `Dockerfile`, `fly.toml`, and a CI deploy job. The image builds the React client and serves it from the Express API on the same origin.
+
+One-time setup:
+
+```powershell
+fly apps create thuantran-blog-staging
+fly postgres create --name thuantran-blog-db --region sin --initial-cluster-size 1
+```
+
+Set the staging secrets using the database password from the previous command:
+
+```powershell
+fly secrets set -a thuantran-blog-staging `
+  DB_USER=postgres `
+  DB_PASSWORD="<database-password>" `
+  DB_HOST=thuantran-blog-db.internal `
+  DB_PORT=5432 `
+  DB_NAME=postgres `
+  JWT_SECRET="<at-least-32-random-characters>" `
+  JWT_EXPIRES_IN=7d `
+  CORS_ORIGINS=https://thuantran-blog-staging.fly.dev `
+  TRUST_PROXY=true
+```
+
+Deploy once, then seed the admin:
+
+```powershell
+fly deploy --remote-only
+fly secrets set -a thuantran-blog-staging ADMIN_USERNAME=admin ADMIN_EMAIL=you@example.com ADMIN_PASSWORD="<strong-password>"
+fly ssh console -a thuantran-blog-staging -C "npm run seed-admin"
+fly secrets unset -a thuantran-blog-staging ADMIN_USERNAME ADMIN_EMAIL ADMIN_PASSWORD
+```
+
+Enable automatic staging deploys by creating a deploy token and adding it to GitHub as `FLY_API_TOKEN`:
+
+```powershell
+fly tokens create deploy -a thuantran-blog-staging
+```
+
+If `thuantran-blog-staging` is unavailable, change the `app` value in `fly.toml` and the URLs above. The staging site is `https://thuantran-blog-staging.fly.dev`.
 
 ## Production notes
 
@@ -256,6 +311,7 @@ The workflow only runs after the repository is pushed to GitHub.
 - Set `CORS_ORIGINS` to the deployed client origin. It is required in production.
 - Use a unique `JWT_SECRET` of at least 32 characters.
 - Set `TRUST_PROXY=true` when the API is behind a trusted reverse proxy.
+- Set `CLIENT_DIST_PATH` to serve the built client from the API on the same origin.
 - Run `npm run db:migrate` before starting a new deployment.
 - Serve the API over HTTPS through a reverse proxy.
 - Use `/health/live` for process checks and `/health/ready` for database-backed readiness checks.

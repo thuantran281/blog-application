@@ -1,0 +1,15 @@
+.git
+.github
+**/node_modules
+**/dist
+**/.env
+**/.env.*
+!**/.env.example
+**/*.log
+coverage
+.cache
+.tmp
+postman
+README.md
+footnote.txt
+opencode.json

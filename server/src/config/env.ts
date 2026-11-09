@@ -17,6 +17,7 @@ const envSchema = z.object({
   CORS_ORIGINS: z.string().optional(),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error', 'silent']).default('info'),
   JSON_BODY_LIMIT: z.string().min(1).max(32).default('100kb'),
+  CLIENT_DIST_PATH: z.string().min(1).optional(),
   TRUST_PROXY: z
     .enum(['true', 'false'])
     .default('false')

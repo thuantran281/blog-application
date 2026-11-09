@@ -12,6 +12,7 @@
     "format:check": "prettier --check .",
     "db:migrate": "node db/migrate.mjs",
     "promote-admin": "node scripts/promote-admin.mjs",
+    "reset-password": "node scripts/reset-password.mjs",
     "seed-admin": "node scripts/seed-admin.mjs",
     "test": "vitest run",
     "test:watch": "vitest",

@@ -1,0 +1,29 @@
+app = "thuantran-blog-staging"
+primary_region = "sin"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "8080"
+  CLIENT_DIST_PATH = "/app/public"
+  TRUST_PROXY = "true"
+  LOG_LEVEL = "info"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    interval = "15s"
+    timeout = "5s"
+    grace_period = "10s"
+    method = "GET"
+    path = "/health/ready"
+
+[deploy]
+  release_command = "node db/migrate.mjs"
