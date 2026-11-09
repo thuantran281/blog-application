@@ -1,6 +1,8 @@
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/context'
 
+const currentYear = new Date().getFullYear()
+
 export function Layout() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
@@ -52,7 +54,33 @@ export function Layout() {
       </main>
 
       <footer className="site-footer">
-        <div className="container">Built with React, Vite, and the Blog API.</div>
+        <div className="container footer-main">
+          <div className="footer-brand">
+            <Link to="/" className="brand">
+              Ink<span>well</span>
+            </Link>
+            <p>A quiet corner for thoughtful writing.</p>
+          </div>
+
+          <nav className="footer-nav" aria-label="Footer">
+            <Link to="/">Home</Link>
+            {user && <Link to="/write">Write</Link>}
+            <a
+              href="https://github.com/thuantran281/blog-application"
+              target="_blank"
+              rel="noreferrer"
+            >
+              GitHub
+            </a>
+          </nav>
+        </div>
+
+        <div className="container footer-bottom">
+          <span>© {currentYear} Inkwell</span>
+          <a href="https://github.com/thuantran281" target="_blank" rel="noreferrer">
+            Built by @thuantran281
+          </a>
+        </div>
       </footer>
     </div>
   )

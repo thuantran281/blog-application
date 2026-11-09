@@ -270,7 +270,7 @@ One-time setup:
 
 ```powershell
 fly apps create thuantran-blog-staging
-fly postgres create --name thuantran-blog-db --region sin --initial-cluster-size 1
+fly postgres create --name thuan-tran-blog-db --region sin --initial-cluster-size 1
 ```
 
 Set the staging secrets using the database password from the previous command:
@@ -279,7 +279,7 @@ Set the staging secrets using the database password from the previous command:
 fly secrets set -a thuantran-blog-staging `
   DB_USER=postgres `
   DB_PASSWORD="<database-password>" `
-  DB_HOST=thuantran-blog-db.internal `
+  DB_HOST=thuan-tran-blog-db.internal `
   DB_PORT=5432 `
   DB_NAME=postgres `
   JWT_SECRET="<at-least-32-random-characters>" `
