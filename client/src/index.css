@@ -375,7 +375,8 @@ img {
 
 /* Forms */
 
-label {
+label,
+.editor-field {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
@@ -383,7 +384,8 @@ label {
   font-weight: 600;
 }
 
-label > span {
+label > span,
+.editor-field > span {
   color: var(--muted);
 }
 
@@ -542,12 +544,168 @@ textarea:focus-visible {
   font-weight: 600;
 }
 
-.post-content {
+.post-content,
+.mdx-editor-content {
   font-family: Georgia, 'Iowan Old Style', 'Times New Roman', serif;
   font-size: 1.1rem;
   line-height: 1.8;
   overflow-wrap: anywhere;
-  white-space: pre-wrap;
+}
+
+.markdown-body > :first-child {
+  margin-top: 0;
+}
+
+.markdown-body > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown-body p {
+  margin: 0 0 1.1rem;
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4 {
+  margin: 1.8rem 0 0.75rem;
+  line-height: 1.2;
+}
+
+.markdown-body h1 {
+  font-size: 1.9rem;
+}
+
+.markdown-body h2 {
+  font-size: 1.55rem;
+}
+
+.markdown-body h3 {
+  font-size: 1.3rem;
+}
+
+.markdown-body h4 {
+  font-size: 1.1rem;
+}
+
+.markdown-body ul,
+.markdown-body ol {
+  margin: 0 0 1.1rem;
+  padding-left: 1.5rem;
+}
+
+.markdown-body li + li {
+  margin-top: 0.35rem;
+}
+
+.markdown-body blockquote {
+  margin: 1.5rem 0;
+  padding: 0.25rem 0 0.25rem 1.1rem;
+  border-left: 3px solid var(--accent);
+  color: var(--muted);
+}
+
+.markdown-body blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown-body a {
+  color: var(--accent);
+}
+
+.markdown-body hr {
+  margin: 2rem 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+.markdown-body code {
+  padding: 0.15rem 0.35rem;
+  border-radius: 6px;
+  background: var(--surface-strong);
+  font-family: 'Cascadia Code', Consolas, monospace;
+  font-size: 0.88em;
+}
+
+.markdown-body pre {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-strong);
+}
+
+.markdown-body pre code {
+  padding: 0;
+  background: none;
+}
+
+.markdown-body table {
+  width: 100%;
+  margin: 1.5rem 0;
+  border-collapse: collapse;
+}
+
+.post-content table {
+  display: block;
+  overflow-x: auto;
+}
+
+.markdown-body th,
+.markdown-body td {
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+
+.markdown-body th {
+  background: var(--surface-strong);
+}
+
+.markdown-body img {
+  border-radius: 10px;
+}
+
+.markdown-body input[type='checkbox'] {
+  width: auto;
+  margin-right: 0.4rem;
+}
+
+.mdx-editor {
+  --accentBase: var(--accent-soft) !important;
+  --accentBgSubtle: var(--accent-soft) !important;
+  --accentBg: var(--accent-soft) !important;
+  --accentBgHover: var(--accent) !important;
+  --accentBgActive: var(--accent) !important;
+  --accentLine: var(--accent) !important;
+  --accentBorder: var(--accent) !important;
+  --accentBorderHover: var(--accent-strong) !important;
+  --accentSolid: var(--accent) !important;
+  --accentSolidHover: var(--accent-strong) !important;
+  --accentText: var(--accent-strong) !important;
+  --accentTextContrast: var(--surface) !important;
+  --basePageBg: var(--surface) !important;
+  --baseBase: var(--surface) !important;
+  --baseBgSubtle: var(--surface-strong) !important;
+  --baseBg: var(--surface-strong) !important;
+  --baseBgHover: var(--border) !important;
+  --baseBgActive: var(--border) !important;
+  --baseLine: var(--border) !important;
+  --baseBorder: var(--border) !important;
+  --baseBorderHover: var(--muted) !important;
+  --baseSolid: var(--muted) !important;
+  --baseSolidHover: var(--text) !important;
+  --baseText: var(--muted) !important;
+  --baseTextContrast: var(--text) !important;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.mdx-editor-content {
+  min-height: 18rem;
 }
 
 .actions {

@@ -7,6 +7,7 @@ A full-stack blog platform with authentication, publishing workflows, comments, 
 - User registration and JWT authentication
 - Draft and published posts with ownership checks
 - Per-post bylines: username, custom display name, or anonymous
+- Markdown editor with headings, lists, links, tables, and sanitized rendering
 - Categories and tags with filtering
 - Admin-only category/tag management at `/admin/taxonomy`
 - Guest and member comments

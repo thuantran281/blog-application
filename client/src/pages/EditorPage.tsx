@@ -1,9 +1,13 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../auth/context'
 import { api, getErrorMessage } from '../lib/api'
 import type { Category, PostStatus, Tag } from '../types'
+
+const RichTextEditor = lazy(() =>
+  import('../components/RichTextEditor').then((module) => ({ default: module.RichTextEditor })),
+)
 
 interface EditorPageProps {
   mode: 'create' | 'edit'
@@ -29,9 +33,11 @@ export function EditorPage({ mode }: EditorPageProps) {
   const [categories, setCategories] = useState<Category[]>([])
   const [tags, setTags] = useState<Tag[]>([])
 
-  const [loading, setLoading] = useState(mode === 'edit')
+  const [loadedSlug, setLoadedSlug] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const loading = mode === 'edit' && loadedSlug !== slug
 
   const missingSlug = mode === 'edit' && !slug
 
@@ -81,15 +87,13 @@ export function EditorPage({ mode }: EditorPageProps) {
             setBylineMode('custom')
             setCustomName(post.author_name)
           }
+
+          setLoadedSlug(slug)
         })
         .catch((loadError: unknown) => {
           if (!cancelled) {
             setError(getErrorMessage(loadError))
-          }
-        })
-        .finally(() => {
-          if (!cancelled) {
-            setLoading(false)
+            setLoadedSlug(slug)
           }
         })
     }
@@ -218,15 +222,12 @@ export function EditorPage({ mode }: EditorPageProps) {
           />
         </label>
 
-        <label>
+        <div className="editor-field">
           <span>Content</span>
-          <textarea
-            value={content}
-            onChange={(event) => setContent(event.target.value)}
-            rows={14}
-            required
-          />
-        </label>
+          <Suspense fallback={<p className="muted">Loading editor…</p>}>
+            <RichTextEditor key={postId ?? 'new'} markdown={content} onChange={setContent} />
+          </Suspense>
+        </div>
 
         <div className="editor-row">
           <label>

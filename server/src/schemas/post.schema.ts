@@ -23,7 +23,7 @@ export const postIdParamSchema = z.object({
 
 export const createPostSchema = z.object({
   title: z.string().trim().min(1).max(200),
-  content: z.string().min(1),
+  content: z.string().min(1).max(100_000),
   excerpt: z.string().trim().max(500).optional(),
   status: z.enum(['draft', 'published']).default('draft'),
   categoryId: z.uuid().nullable().optional(),
@@ -34,7 +34,7 @@ export const createPostSchema = z.object({
 export const updatePostSchema = z
   .object({
     title: z.string().trim().min(1).max(200).optional(),
-    content: z.string().min(1).optional(),
+    content: z.string().min(1).max(100_000).optional(),
     excerpt: z.string().trim().max(500).nullable().optional(),
     status: z.enum(['draft', 'published']).optional(),
     categoryId: z.uuid().nullable().optional(),

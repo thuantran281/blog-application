@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { MarkdownContent } from '../components/MarkdownContent'
 import { useAuth } from '../auth/context'
 import { api, getErrorMessage } from '../lib/api'
 import { formatDate } from '../lib/format'
@@ -218,7 +219,7 @@ export function PostDetailPage() {
           ))}
         </div>
 
-        <div className="post-content">{post.content}</div>
+        <MarkdownContent content={post.content} />
 
         {canManagePost && (
           <div className="actions">
