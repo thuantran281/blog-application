@@ -42,7 +42,7 @@ A full-stack blog platform with authentication, publishing workflows, comments, 
 
 ## Prerequisites
 
-- Node.js 20.19+ (or a newer LTS release)
+- Node.js 24 LTS (see `.nvmrc`)
 - npm
 - PostgreSQL 14+ (CI uses PostgreSQL 16)
 
@@ -305,6 +305,24 @@ fly tokens create deploy -a thuantran-blog-staging
 ```
 
 If `thuantran-blog-staging` is unavailable, change the `app` value in `fly.toml` and the URLs above. The staging site is `https://thuantran-blog-staging.fly.dev`.
+
+### Database backups
+
+The staging Postgres cluster uses Fly WAL archiving to Tigris. It keeps a 7-day recovery window and creates full backups every 24 hours.
+
+```powershell
+fly postgres backup config show -a thuan-tran-blog-db
+fly postgres backup list -a thuan-tran-blog-db
+fly postgres backup create -a thuan-tran-blog-db
+```
+
+Restore into a new Postgres app, then point the application at it:
+
+```powershell
+fly postgres backup restore <restore-app-name> -a thuan-tran-blog-db --restore-target-name <backup-id>
+```
+
+Fly Postgres is unmanaged; test the restore path before using it for production data.
 
 ## Production notes
 
