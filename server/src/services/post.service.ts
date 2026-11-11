@@ -1,7 +1,7 @@
 import type { PoolClient } from 'pg'
 import pool from '../config/db.js'
 import type { AuthUser } from '../types/auth.js'
-import { isForeignKeyViolation, isUniqueViolation } from '../utils/db.js'
+import { isForeignKeyViolation, isUniqueViolation, pgConstraintName } from '../utils/db.js'
 import { slugify } from '../utils/slug.js'
 
 const MAX_SLUG_ATTEMPTS = 20
@@ -34,6 +34,20 @@ export class TagNotFoundError extends Error {
   }
 }
 
+export class PostVersionConflictError extends Error {
+  constructor(public readonly current: Post) {
+    super('This post was changed by someone else. Reload it and try again.')
+    this.name = 'PostVersionConflictError'
+  }
+}
+
+export class PostIdempotencyConflictError extends Error {
+  constructor() {
+    super('This request ID belongs to a different post')
+    this.name = 'PostIdempotencyConflictError'
+  }
+}
+
 function canModifyPost(post: { author_id: string | null }, actor: AuthUser): boolean {
   if (actor.role === 'admin') {
     return true
@@ -58,6 +72,7 @@ export interface Post extends PostSummary {
   content: string
   author_id: string | null
   category_id: string | null
+  version: number
 }
 
 export interface PostCategory {
@@ -109,9 +124,11 @@ interface CreatePostParams {
   authorDisplayName: string | null
   categoryId: string | null
   tagIds: string[]
+  clientRequestId: string | null
 }
 
 interface UpdatePostParams {
+  version: number
   title?: string | undefined
   content?: string | undefined
   excerpt?: string | null | undefined
@@ -128,7 +145,7 @@ const SUMMARY_COLUMNS = `
 
 const POST_COLUMNS = `
   id, title, slug, content, excerpt, author_id, category_id,
-  status, created_at, updated_at, published_at,
+  status, created_at, updated_at, published_at, version,
   author_display_name AS author_name
 `
 
@@ -246,6 +263,29 @@ async function setPostTags(client: PoolClient, postId: string, tagIds: string[])
   }
 }
 
+async function rollbackQuietly(client: PoolClient): Promise<void> {
+  try {
+    await client.query('ROLLBACK')
+  } catch {
+    // The transaction may already be closed.
+  }
+}
+
+async function findPostByClientRequestId(
+  clientRequestId: string,
+  authorId: string,
+): Promise<Post | null> {
+  const result = await pool.query<Post>(
+    `SELECT ${POST_COLUMNS}
+     FROM posts
+     WHERE client_request_id = $1 AND author_id = $2
+     LIMIT 1`,
+    [clientRequestId, authorId],
+  )
+
+  return result.rows[0] ?? null
+}
+
 export async function findPostBySlug(slug: string): Promise<PostWithRelations | null> {
   const result = await pool.query<Post>(
     `SELECT ${POST_COLUMNS}
@@ -308,6 +348,7 @@ export async function createPost({
   authorDisplayName,
   categoryId,
   tagIds,
+  clientRequestId,
 }: CreatePostParams): Promise<PostWithRelations> {
   const baseSlug = slugify(title) || 'post'
   const publishedAt = status === 'published' ? new Date() : null
@@ -323,8 +364,9 @@ export async function createPost({
 
       const result = await client.query<Post>(
         `INSERT INTO posts
-           (title, slug, content, excerpt, author_id, author_display_name, category_id, status, published_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+           (title, slug, content, excerpt, author_id, author_display_name, category_id, status,
+            published_at, client_request_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
          RETURNING ${POST_COLUMNS}`,
         [
           title,
@@ -336,6 +378,7 @@ export async function createPost({
           categoryId,
           status,
           publishedAt,
+          clientRequestId,
         ],
       )
 
@@ -351,13 +394,24 @@ export async function createPost({
       created = post
       break
     } catch (err) {
-      await client.query('ROLLBACK')
+      await rollbackQuietly(client)
 
       if (isForeignKeyViolation(err)) {
         throw new CategoryNotFoundError()
       }
 
       if (isUniqueViolation(err)) {
+        if (clientRequestId && pgConstraintName(err) === 'posts_client_request_id_key') {
+          const existing = await findPostByClientRequestId(clientRequestId, authorId)
+
+          if (!existing) {
+            throw new PostIdempotencyConflictError()
+          }
+
+          created = existing
+          break
+        }
+
         continue
       }
 
@@ -375,24 +429,37 @@ export async function createPost({
 }
 
 export async function deletePost(id: string, actor: AuthUser): Promise<boolean> {
-  const existing = await pool.query<{ author_id: string | null }>(
-    'SELECT author_id FROM posts WHERE id = $1',
-    [id],
-  )
+  const client = await pool.connect()
 
-  const current = existing.rows[0]
+  try {
+    await client.query('BEGIN')
 
-  if (!current) {
-    return false
+    const existing = await client.query<{ author_id: string | null }>(
+      'SELECT author_id FROM posts WHERE id = $1 FOR UPDATE',
+      [id],
+    )
+
+    const current = existing.rows[0]
+
+    if (!current) {
+      await client.query('ROLLBACK')
+      return false
+    }
+
+    if (!canModifyPost(current, actor)) {
+      throw new PostAccessError()
+    }
+
+    const result = await client.query('DELETE FROM posts WHERE id = $1 RETURNING id', [id])
+    await client.query('COMMIT')
+
+    return result.rowCount === 1
+  } catch (err) {
+    await rollbackQuietly(client)
+    throw err
+  } finally {
+    client.release()
   }
-
-  if (!canModifyPost(current, actor)) {
-    throw new PostAccessError()
-  }
-
-  const result = await pool.query('DELETE FROM posts WHERE id = $1 RETURNING id', [id])
-
-  return result.rowCount === 1
 }
 
 export async function updatePost(
@@ -400,83 +467,78 @@ export async function updatePost(
   input: UpdatePostParams,
   actor: AuthUser,
 ): Promise<PostWithRelations | null> {
-  const existing = await pool.query<Post>(`SELECT ${POST_COLUMNS} FROM posts WHERE id = $1`, [id])
-
-  const current = existing.rows[0]
-
-  if (!current) {
-    return null
-  }
-
-  if (!canModifyPost(current, actor)) {
-    throw new PostAccessError()
-  }
-
-  const title = input.title ?? current.title
-  const content = input.content ?? current.content
-  const excerpt = input.excerpt === undefined ? current.excerpt : input.excerpt
-  const status = input.status ?? current.status
-  const categoryId = input.categoryId === undefined ? current.category_id : input.categoryId
-  const authorDisplayName =
-    input.displayName === undefined ? current.author_name : input.displayName
-  const publishedAt = status === 'published' ? (current.published_at ?? new Date()) : null
-
-  const titleChanged = input.title !== undefined && input.title !== current.title
-  const baseSlug = titleChanged ? slugify(title) || 'post' : current.slug
-
+  const client = await pool.connect()
   let updated: Post | null = null
 
-  for (let attempt = 1; attempt <= MAX_SLUG_ATTEMPTS; attempt++) {
-    const slug = attempt === 1 ? baseSlug : `${baseSlug}-${attempt}`
-    const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
 
-    try {
-      await client.query('BEGIN')
+    const existing = await client.query<Post>(
+      `SELECT ${POST_COLUMNS} FROM posts WHERE id = $1 FOR UPDATE`,
+      [id],
+    )
 
-      const result = await client.query<Post>(
-        `UPDATE posts
-         SET title = $1, slug = $2, content = $3, excerpt = $4,
-             category_id = $5, status = $6, published_at = $7,
-             author_display_name = $8
-         WHERE id = $9
-         RETURNING ${POST_COLUMNS}`,
-        [title, slug, content, excerpt, categoryId, status, publishedAt, authorDisplayName, id],
-      )
+    const current = existing.rows[0]
 
-      const post = result.rows[0]
-
-      if (!post) {
-        await client.query('ROLLBACK')
-        return null
-      }
-
-      if (input.tagIds !== undefined) {
-        await setPostTags(client, post.id, input.tagIds)
-      }
-
-      await client.query('COMMIT')
-
-      updated = post
-      break
-    } catch (err) {
+    if (!current) {
       await client.query('ROLLBACK')
-
-      if (isForeignKeyViolation(err)) {
-        throw new CategoryNotFoundError()
-      }
-
-      if (isUniqueViolation(err)) {
-        continue
-      }
-
-      throw err
-    } finally {
-      client.release()
+      return null
     }
+
+    if (!canModifyPost(current, actor)) {
+      throw new PostAccessError()
+    }
+
+    if (input.version !== current.version) {
+      throw new PostVersionConflictError(current)
+    }
+
+    const title = input.title ?? current.title
+    const content = input.content ?? current.content
+    const excerpt = input.excerpt === undefined ? current.excerpt : input.excerpt
+    const status = input.status ?? current.status
+    const categoryId = input.categoryId === undefined ? current.category_id : input.categoryId
+    const authorDisplayName =
+      input.displayName === undefined ? current.author_name : input.displayName
+    const publishedAt = status === 'published' ? (current.published_at ?? new Date()) : null
+
+    const result = await client.query<Post>(
+      `UPDATE posts
+       SET title = $1, content = $2, excerpt = $3, category_id = $4,
+           status = $5, published_at = $6, author_display_name = $7,
+           version = version + 1
+       WHERE id = $8
+       RETURNING ${POST_COLUMNS}`,
+      [title, content, excerpt, categoryId, status, publishedAt, authorDisplayName, id],
+    )
+
+    const post = result.rows[0]
+
+    if (!post) {
+      await client.query('ROLLBACK')
+      return null
+    }
+
+    if (input.tagIds !== undefined) {
+      await setPostTags(client, post.id, input.tagIds)
+    }
+
+    await client.query('COMMIT')
+    updated = post
+  } catch (err) {
+    await rollbackQuietly(client)
+
+    if (isForeignKeyViolation(err)) {
+      throw new CategoryNotFoundError()
+    }
+
+    throw err
+  } finally {
+    client.release()
   }
 
   if (!updated) {
-    throw new SlugConflictError()
+    throw new Error('Update did not return a post')
   }
 
   return attachRelations(updated)

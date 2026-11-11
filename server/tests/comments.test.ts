@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { beforeEach, describe, expect, it } from 'vitest'
 import request from 'supertest'
 import { app, createPost, registerUser, resetDb } from './helpers.js'
@@ -41,6 +42,23 @@ describe('comments', () => {
       guest_name: null,
       author_name: user.username,
     })
+  })
+
+  it('returns the same comment when a create request is retried', async () => {
+    const { token } = await registerUser()
+    const post = await createPost(token, { title: 'Retry Comment', status: 'published' })
+    const clientRequestId = randomUUID()
+    const body = { content: 'Only once', guestName: 'Guest', clientRequestId }
+
+    const first = await request(app).post(`/api/posts/${post.slug}/comments`).send(body)
+    const retried = await request(app).post(`/api/posts/${post.slug}/comments`).send(body)
+
+    expect(first.status).toBe(201)
+    expect(retried.status).toBe(201)
+    expect(retried.body.data.id).toBe(first.body.data.id)
+
+    const listed = await request(app).get(`/api/posts/${post.slug}/comments`)
+    expect(listed.body.meta.total).toBe(1)
   })
 
   it('lists comments with pagination, oldest first', async () => {

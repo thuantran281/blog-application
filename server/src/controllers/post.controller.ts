@@ -17,6 +17,8 @@ import {
   listMyPosts as listMyPostsRecord,
   listPublishedPosts,
   PostAccessError,
+  PostIdempotencyConflictError,
+  PostVersionConflictError,
   SlugConflictError,
   TagNotFoundError,
   updatePost as updatePostRecord,
@@ -72,9 +74,10 @@ export async function createPost(req: Request, res: Response) {
       authorDisplayName: input.displayName === undefined ? user.username : input.displayName,
       categoryId: input.categoryId ?? null,
       tagIds: input.tagIds ?? [],
+      clientRequestId: input.clientRequestId ?? null,
     })
   } catch (err) {
-    if (err instanceof SlugConflictError) {
+    if (err instanceof SlugConflictError || err instanceof PostIdempotencyConflictError) {
       throw new HttpError(409, err.message)
     }
 
@@ -99,6 +102,10 @@ export async function updatePost(req: Request, res: Response) {
   } catch (err) {
     if (err instanceof SlugConflictError) {
       throw new HttpError(409, err.message)
+    }
+
+    if (err instanceof PostVersionConflictError) {
+      throw new HttpError(409, err.message, { current: err.current })
     }
 
     if (err instanceof PostAccessError) {

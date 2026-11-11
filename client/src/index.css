@@ -825,6 +825,54 @@ textarea:focus-visible {
   font-size: 1.2rem;
 }
 
+/* Drafts */
+
+.draft-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+}
+
+.draft-banner p {
+  margin: 0.3rem 0 0;
+  font-size: 0.9rem;
+}
+
+.save-status {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.save-status[data-state='local'] {
+  color: #237a48;
+}
+
+.save-status[data-state='offline'],
+.save-status[data-state='dirty'] {
+  color: #a86f00;
+}
+
+.save-status[data-state='conflict'],
+.save-status[data-state='error'] {
+  color: var(--danger);
+}
+
+@media (prefers-color-scheme: dark) {
+  .save-status[data-state='local'] {
+    color: #6fdc9a;
+  }
+
+  .save-status[data-state='offline'],
+  .save-status[data-state='dirty'] {
+    color: #f0b429;
+  }
+}
+
 /* Editor */
 
 .editor-form {

@@ -59,8 +59,12 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: |
+            package-lock.json
             server/package-lock.json
             client/package-lock.json
+
+      - name: Install E2E dependencies
+        run: npm ci
 
       - name: Install server dependencies
         working-directory: server
@@ -133,6 +137,12 @@ jobs:
 
           curl --fail --silent http://localhost:3000/health/ready > /dev/null
           npm run test:api
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run browser E2E tests
+        run: npm run test:e2e
 
   deploy-staging:
     name: Deploy staging

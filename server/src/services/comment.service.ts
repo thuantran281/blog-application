@@ -1,4 +1,5 @@
 import pool from '../config/db.js'
+import { isUniqueViolation, pgConstraintName } from '../utils/db.js'
 
 const COMMENT_COLUMNS = `
   c.id, c.post_id, c.user_id, c.guest_name, c.content, c.created_at,
@@ -35,6 +36,14 @@ interface CreateCommentParams {
   userId: string | null
   guestName: string | null
   content: string
+  clientRequestId: string | null
+}
+
+export class CommentIdempotencyConflictError extends Error {
+  constructor() {
+    super('This request ID belongs to a different comment')
+    this.name = 'CommentIdempotencyConflictError'
+  }
 }
 
 export async function findPublishedPostIdBySlug(slug: string): Promise<string | null> {
@@ -54,6 +63,22 @@ export async function findCommentById(id: string): Promise<Comment | null> {
      WHERE c.id = $1
      LIMIT 1`,
     [id],
+  )
+
+  return result.rows[0] ?? null
+}
+
+async function findCommentByClientRequestId(
+  clientRequestId: string,
+  postId: string,
+): Promise<Comment | null> {
+  const result = await pool.query<Comment>(
+    `SELECT ${COMMENT_COLUMNS}
+     FROM comments c
+     LEFT JOIN users u ON u.id = c.user_id
+     WHERE c.client_request_id = $1 AND c.post_id = $2
+     LIMIT 1`,
+    [clientRequestId, postId],
   )
 
   return result.rows[0] ?? null
@@ -99,15 +124,36 @@ export async function createComment({
   userId,
   guestName,
   content,
+  clientRequestId,
 }: CreateCommentParams): Promise<Comment> {
-  const result = await pool.query<{ id: string }>(
-    `INSERT INTO comments (post_id, user_id, guest_name, content)
-     VALUES ($1, $2, $3, $4)
-     RETURNING id`,
-    [postId, userId, guestName, content],
-  )
+  let id: string | undefined
 
-  const id = result.rows[0]?.id
+  try {
+    const result = await pool.query<{ id: string }>(
+      `INSERT INTO comments (post_id, user_id, guest_name, content, client_request_id)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id`,
+      [postId, userId, guestName, content, clientRequestId],
+    )
+
+    id = result.rows[0]?.id
+  } catch (err) {
+    if (
+      clientRequestId &&
+      isUniqueViolation(err) &&
+      pgConstraintName(err) === 'comments_client_request_id_key'
+    ) {
+      const existing = await findCommentByClientRequestId(clientRequestId, postId)
+
+      if (existing) {
+        return existing
+      }
+
+      throw new CommentIdempotencyConflictError()
+    }
+
+    throw err
+  }
 
   if (!id) {
     throw new Error('Insert did not return a comment')

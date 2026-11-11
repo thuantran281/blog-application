@@ -55,6 +55,7 @@ export interface Post extends PostSummary {
   content: string
   author_id: string | null
   category_id: string | null
+  version: number
   category: PostCategory | null
   tags: PostTag[]
 }
@@ -100,9 +101,11 @@ export interface CreatePostInput {
   categoryId?: string | null
   tagIds?: string[]
   displayName?: string | null
+  clientRequestId?: string
 }
 
 export interface UpdatePostInput {
+  version: number
   title?: string
   content?: string
   excerpt?: string | null
@@ -115,4 +118,5 @@ export interface UpdatePostInput {
 export interface CreateCommentInput {
   content: string
   guestName?: string
+  clientRequestId?: string
 }

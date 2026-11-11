@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { MarkdownContent } from '../components/MarkdownContent'
 import { useAuth } from '../auth/context'
 import { api, getErrorMessage } from '../lib/api'
+import { createRequestId } from '../lib/drafts'
 import { formatDate } from '../lib/format'
 import type { Comment, Post } from '../types'
 
@@ -23,6 +24,7 @@ export function PostDetailPage() {
   const [commentContent, setCommentContent] = useState('')
   const [guestName, setGuestName] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const commentRequestRef = useRef<{ signature: string; id: string } | null>(null)
 
   const isPublished = post?.status === 'published'
   const missingSlug = !slug
@@ -114,12 +116,23 @@ export function PostDetailPage() {
     setSubmitting(true)
     setActionError(null)
 
+    const signature = `${content}\u0000${user ? '' : guestName.trim()}`
+
+    if (commentRequestRef.current?.signature !== signature) {
+      commentRequestRef.current = {
+        signature,
+        id: createRequestId(),
+      }
+    }
+
     try {
       const created = await api.createComment(slug, {
         content,
+        clientRequestId: commentRequestRef.current.id,
         ...(user ? {} : { guestName: guestName.trim() }),
       })
 
+      commentRequestRef.current = null
       setComments((current) => [...current, created])
       setCommentTotal((current) => current + 1)
       setCommentContent('')

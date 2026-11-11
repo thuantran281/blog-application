@@ -72,6 +72,7 @@ interface PostOverrides {
   categoryId?: string | null
   tagIds?: string[]
   displayName?: string | null
+  clientRequestId?: string
 }
 
 export async function createPost(token: string, overrides: PostOverrides = {}) {

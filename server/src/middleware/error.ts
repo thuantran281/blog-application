@@ -6,6 +6,7 @@ export class HttpError extends Error {
   constructor(
     public readonly status: number,
     message: string,
+    public readonly details?: unknown,
   ) {
     super(message)
     this.name = 'HttpError'
@@ -47,7 +48,10 @@ export function errorHandler(err: unknown, req: Request, res: Response, next: Ne
   }
 
   if (err instanceof HttpError) {
-    res.status(err.status).json({ error: err.message })
+    res.status(err.status).json({
+      error: err.message,
+      ...(err.details === undefined ? {} : { details: err.details }),
+    })
     return
   }
 

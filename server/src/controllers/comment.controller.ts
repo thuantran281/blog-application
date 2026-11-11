@@ -8,11 +8,13 @@ import {
   listCommentsQuerySchema,
 } from '../schemas/comment.schema.js'
 import {
+  CommentIdempotencyConflictError,
   createComment as createCommentRecord,
   deleteComment as deleteCommentRecord,
   findCommentById,
   findPublishedPostIdBySlug,
   listCommentsByPostId,
+  type Comment,
 } from '../services/comment.service.js'
 
 export async function listComments(req: Request, res: Response) {
@@ -45,12 +47,22 @@ export async function createComment(req: Request, res: Response) {
     throw new HttpError(400, 'guestName is required when not authenticated')
   }
 
-  const comment = await createCommentRecord({
-    postId,
-    userId: user?.id ?? null,
-    guestName,
-    content: input.content,
-  })
+  let comment: Comment
+  try {
+    comment = await createCommentRecord({
+      postId,
+      userId: user?.id ?? null,
+      guestName,
+      content: input.content,
+      clientRequestId: input.clientRequestId ?? null,
+    })
+  } catch (err) {
+    if (err instanceof CommentIdempotencyConflictError) {
+      throw new HttpError(409, err.message)
+    }
+
+    throw err
+  }
 
   res.status(201).location(`/api/comments/${comment.id}`).json({ data: comment })
 }

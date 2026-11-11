@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { beforeEach, describe, expect, it } from 'vitest'
 import request from 'supertest'
 import { app, createPost, registerUser, resetDb } from './helpers.js'
@@ -49,7 +50,7 @@ describe('posts', () => {
     const restored = await request(app)
       .patch(`/api/posts/${anonymous.id}`)
       .set('Authorization', `Bearer ${token}`)
-      .send({ displayName: user.username })
+      .send({ displayName: user.username, version: anonymous.version })
 
     expect(restored.status).toBe(200)
     expect(restored.body.data.author_name).toBe(user.username)
@@ -62,6 +63,67 @@ describe('posts', () => {
 
     expect(first.slug).toBe('same-title')
     expect(second.slug).toBe('same-title-2')
+  })
+
+  it('keeps the slug stable when the title changes', async () => {
+    const { token } = await registerUser()
+    const post = await createPost(token, { title: 'Stable Url' })
+
+    const updated = await request(app)
+      .patch(`/api/posts/${post.id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ title: 'A Different Title', version: post.version })
+
+    expect(updated.status).toBe(200)
+    expect(updated.body.data.slug).toBe('stable-url')
+    expect(updated.body.data.version).toBe(post.version + 1)
+  })
+
+  it('rejects stale updates and returns the current post', async () => {
+    const { token } = await registerUser()
+    const post = await createPost(token, { title: 'Concurrent Post' })
+
+    const first = await request(app)
+      .patch(`/api/posts/${post.id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ content: 'First writer', version: post.version })
+
+    expect(first.status).toBe(200)
+
+    const stale = await request(app)
+      .patch(`/api/posts/${post.id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ content: 'Second writer', version: post.version })
+
+    expect(stale.status).toBe(409)
+    expect(stale.body.details.current).toMatchObject({
+      id: post.id,
+      content: 'First writer',
+      version: post.version + 1,
+    })
+
+    const current = await request(app)
+      .get(`/api/posts/${post.slug}`)
+      .set('Authorization', `Bearer ${token}`)
+
+    expect(current.body.data.content).toBe('First writer')
+  })
+
+  it('returns the same post when a create request is retried', async () => {
+    const { token } = await registerUser()
+    const clientRequestId = randomUUID()
+
+    const first = await createPost(token, {
+      title: 'Idempotent Post',
+      clientRequestId,
+    })
+    const retried = await createPost(token, {
+      title: 'Different Retry Title',
+      clientRequestId,
+    })
+
+    expect(retried.id).toBe(first.id)
+    expect(retried.title).toBe('Idempotent Post')
   })
 
   it('returns published posts by slug and hides drafts from non-authors', async () => {
@@ -88,7 +150,7 @@ describe('posts', () => {
     await request(app)
       .patch(`/api/posts/${draft.id}`)
       .set('Authorization', `Bearer ${author.token}`)
-      .send({ status: 'published' })
+      .send({ status: 'published', version: draft.version })
       .expect(200)
 
     expect((await request(app).get(`/api/posts/${draft.slug}`)).status).toBe(200)
@@ -102,15 +164,15 @@ describe('posts', () => {
     const forbidden = await request(app)
       .patch(`/api/posts/${post.id}`)
       .set('Authorization', `Bearer ${other.token}`)
-      .send({ title: 'Hijack' })
+      .send({ title: 'Hijack', version: post.version })
     expect(forbidden.status).toBe(403)
 
     const updated = await request(app)
       .patch(`/api/posts/${post.id}`)
       .set('Authorization', `Bearer ${author.token}`)
-      .send({ title: 'Updated Post' })
+      .send({ title: 'Updated Post', version: post.version })
     expect(updated.status).toBe(200)
-    expect(updated.body.data.slug).toBe('updated-post')
+    expect(updated.body.data.slug).toBe(post.slug)
 
     const forbiddenDelete = await request(app)
       .delete(`/api/posts/${post.id}`)

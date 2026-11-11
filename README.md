@@ -6,6 +6,8 @@ A full-stack blog platform with authentication, publishing workflows, comments, 
 
 - User registration and JWT authentication
 - Draft and published posts with ownership checks
+- Local draft backup and recovery, plus bounded autosave for existing posts
+- Optimistic post concurrency (`version`) and idempotent post/comment retries
 - Per-post bylines: username, custom display name, or anonymous
 - Markdown editor with headings, lists, links, tables, and sanitized rendering
 - Categories and tags with filtering
@@ -23,7 +25,7 @@ A full-stack blog platform with authentication, publishing workflows, comments, 
 | Server | Node.js, Express 5, TypeScript, Zod |
 | Database | PostgreSQL |
 | Auth | JWT, bcryptjs |
-| Testing | Vitest, Supertest, Newman |
+| Testing | Vitest, Supertest, Newman, Playwright |
 | CI | GitHub Actions |
 
 ## Project structure
@@ -31,6 +33,7 @@ A full-stack blog platform with authentication, publishing workflows, comments, 
 ```text
 .
 ├── client/                     React frontend
+├── e2e/                        Playwright browser tests
 ├── server/                     Express API
 │   ├── db/migrations/          SQL migrations
 │   ├── scripts/                Admin bootstrap scripts
@@ -194,6 +197,27 @@ VITE_API_URL=http://localhost:3000
 | `npm run lint` | Run oxlint |
 | `npm run preview` | Preview the production build |
 
+### Browser E2E
+
+Playwright tests live in `e2e/`. They start the compiled server on port `3100` and serve the built client from the same origin.
+
+From the repository root:
+
+```powershell
+npm install
+npm run test:e2e:install
+npm run test:e2e
+```
+
+Build both packages and apply migrations before the first run:
+
+```powershell
+cd client; npm run build
+cd ..\server; npm run build; npm run db:migrate
+```
+
+The tests use the admin credentials `postman_admin@example.com` / `password123` by default. Override them with `E2E_ADMIN_EMAIL`, `E2E_ADMIN_PASSWORD`, and `E2E_ADMIN_USERNAME`. The server reads database settings from `server/.env` locally, or from the process environment in CI.
+
 ## API overview
 
 | Method | Endpoint | Access |
@@ -224,6 +248,8 @@ VITE_API_URL=http://localhost:3000
 | `POST` | `/api/posts/:slug/comments` | Public or authenticated |
 | `DELETE` | `/api/comments/:id` | Comment owner |
 
+`PATCH /api/posts/:id` must include the current post `version`. A stale version returns `409` with the current post in `details.current`. Post and comment creation accept an optional UUID `clientRequestId`; retrying with the same ID returns the previously created row instead of creating a duplicate. Post slugs stay stable after creation.
+
 ## Testing
 
 Run server tests:
@@ -244,6 +270,14 @@ npm run test:api
 
 Before running Newman, seed an admin whose credentials match the `adminEmail` and `adminPassword` collection variables. The Postman collection is in `postman/blog-api.postman_collection.json`.
 
+Run browser E2E tests from the repository root:
+
+```powershell
+npm run test:e2e
+```
+
+See [Browser E2E](#browser-e2e) for setup details.
+
 ## CI
 
 `.github/workflows/ci.yml` runs on pushes to `main` and on pull requests. It:
@@ -258,6 +292,7 @@ Before running Newman, seed an admin whose credentials match the `adminEmail` an
 - Seeds an admin
 - Starts the production build
 - Runs Newman API smoke tests
+- Installs Chromium and runs Playwright browser tests
 
 On pushes to `main`, the `deploy-staging` job deploys to Fly.io after the test job passes. It requires a `FLY_API_TOKEN` repository secret.
 

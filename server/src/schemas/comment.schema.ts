@@ -8,6 +8,7 @@ export const listCommentsQuerySchema = z.object({
 export const createCommentSchema = z.object({
   content: z.string().trim().min(1).max(2000),
   guestName: z.string().trim().min(1).max(100).optional(),
+  clientRequestId: z.uuid().optional(),
 })
 
 export const commentIdParamSchema = z.object({

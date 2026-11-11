@@ -32,9 +32,11 @@
     { "key": "postId", "value": "" },
     { "key": "postSlug", "value": "" },
     { "key": "postTitle", "value": "" },
+    { "key": "postVersion", "value": "" },
     { "key": "draftId", "value": "" },
     { "key": "draftSlug", "value": "" },
     { "key": "draftTitle", "value": "" },
+    { "key": "draftVersion", "value": "" },
     { "key": "commentId", "value": "" },
     { "key": "guestCommentId", "value": "" }
   ],
@@ -645,6 +647,7 @@
                   "const body = pm.response.json()",
                   "pm.collectionVariables.set('postId', body.data.id)",
                   "pm.collectionVariables.set('postSlug', body.data.slug)",
+                  "pm.collectionVariables.set('postVersion', body.data.version)",
                   "pm.test('category attached', () => pm.expect(body.data.category.id).to.eql(pm.collectionVariables.get('categoryId')))",
                   "pm.test('tag attached', () => pm.expect(body.data.tags).to.have.lengthOf(1))",
                   "pm.test('custom byline attached', () => pm.expect(body.data.author_name).to.eql('Postman Byline'))"
@@ -821,7 +824,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\"content\":\"Updated from Postman\",\"displayName\":null}",
+              "raw": "{\"content\":\"Updated from Postman\",\"displayName\":null,\"version\":{{postVersion}}}",
               "options": { "raw": { "language": "json" } }
             },
             "url": {
@@ -850,6 +853,7 @@
                   "const body = pm.response.json()",
                   "pm.collectionVariables.set('draftId', body.data.id)",
                   "pm.collectionVariables.set('draftSlug', body.data.slug)",
+                  "pm.collectionVariables.set('draftVersion', body.data.version)",
                   "pm.test('is a draft', () => pm.expect(body.data.status).to.eql('draft'))"
                 ]
               }
@@ -937,7 +941,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\"status\":\"published\"}",
+              "raw": "{\"status\":\"published\",\"version\":{{draftVersion}}}",
               "options": { "raw": { "language": "json" } }
             },
             "url": {

@@ -15,8 +15,11 @@ const pool = new pg.Pool({
 })
 
 const client = await pool.connect()
+const migrationLockKey = 724311
 
 try {
+  await client.query('SELECT pg_advisory_lock($1)', [migrationLockKey])
+
   await client.query(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       filename TEXT PRIMARY KEY,
@@ -53,6 +56,10 @@ try {
   console.error('Migration failed:', err.message)
   process.exitCode = 1
 } finally {
-  client.release()
-  await pool.end()
+  try {
+    await client.query('SELECT pg_advisory_unlock($1)', [migrationLockKey])
+  } finally {
+    client.release()
+    await pool.end()
+  }
 }

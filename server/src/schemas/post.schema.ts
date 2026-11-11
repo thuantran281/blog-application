@@ -29,10 +29,12 @@ export const createPostSchema = z.object({
   categoryId: z.uuid().nullable().optional(),
   tagIds: z.array(z.uuid()).max(20).optional(),
   displayName: z.string().trim().min(1).max(100).nullable().optional(),
+  clientRequestId: z.uuid().optional(),
 })
 
 export const updatePostSchema = z
   .object({
+    version: z.number().int().positive(),
     title: z.string().trim().min(1).max(200).optional(),
     content: z.string().min(1).max(100_000).optional(),
     excerpt: z.string().trim().max(500).nullable().optional(),
@@ -41,7 +43,7 @@ export const updatePostSchema = z
     tagIds: z.array(z.uuid()).max(20).optional(),
     displayName: z.string().trim().min(1).max(100).nullable().optional(),
   })
-  .refine((input) => Object.keys(input).length > 0, {
+  .refine((input) => Object.keys(input).some((key) => key !== 'version'), {
     message: 'At least one field is required',
   })
 
