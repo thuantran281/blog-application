@@ -16,7 +16,7 @@ import type {
 
 const API_URL = (
   import.meta.env.VITE_API_URL ??
-  (import.meta.env.PROD ? '' : 'http://localhost:3000')
+  (import.meta.env.MODE === 'development' ? 'http://localhost:3000' : '')
 ).replace(/\/+$/, '')
 const TOKEN_KEY = 'blog-api-token'
 

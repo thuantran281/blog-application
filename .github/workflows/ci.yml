@@ -99,6 +99,8 @@ jobs:
 
       - name: Build client
         working-directory: client
+        env:
+          NODE_ENV: production
         run: npm run build
 
       - name: Build server
