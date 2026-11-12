@@ -13,6 +13,20 @@ const configuredLevel = process.env.LOG_LEVEL as LogLevel | undefined
 const minimumLevel: LogLevel =
   env.NODE_ENV === 'test' && configuredLevel === undefined ? 'silent' : env.LOG_LEVEL
 
+const secrets = [env.DB_PASSWORD, env.JWT_SECRET]
+  .filter((secret) => secret.length >= 8)
+  .sort((left, right) => right.length - left.length)
+
+function redactSecrets(value: string) {
+  let redacted = value
+
+  for (const secret of secrets) {
+    redacted = redacted.split(secret).join('[REDACTED]')
+  }
+
+  return redacted
+}
+
 function serializeError(error: unknown) {
   if (error instanceof Error) {
     return {
@@ -41,7 +55,7 @@ function write(
     ...context,
   }
 
-  const output = JSON.stringify(entry)
+  const output = redactSecrets(JSON.stringify(entry))
 
   if (level === 'error') {
     console.error(output)

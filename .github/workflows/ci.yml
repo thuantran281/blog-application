@@ -63,6 +63,9 @@ jobs:
             server/package-lock.json
             client/package-lock.json
 
+      - name: Check for committed secrets
+        run: npm run check:secrets
+
       - name: Install E2E dependencies
         run: npm ci
 

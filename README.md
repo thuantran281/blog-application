@@ -362,8 +362,10 @@ Fly Postgres is unmanaged; test the restore path before using it for production 
 ## Production notes
 
 - Set `NODE_ENV=production`.
-- Set `CORS_ORIGINS` to the deployed client origin. It is required in production.
-- Use a unique `JWT_SECRET` of at least 32 characters.
+- Set `CORS_ORIGINS` to the deployed client origin. It is required in production and must use HTTPS outside localhost.
+- Use a unique `JWT_SECRET` of at least 32 characters. Placeholder and example values are rejected in production.
+- Keep real secrets in `server/.env` locally and in Fly secrets when deployed. Never commit `.env`, private keys, or credential files.
+- Run `npm run check:secrets` before committing. CI runs the same scan on every push and pull request.
 - Set `TRUST_PROXY=true` when the API is behind a trusted reverse proxy.
 - Set `CLIENT_DIST_PATH` to serve the built client from the API on the same origin.
 - Run `npm run db:migrate` before starting a new deployment.

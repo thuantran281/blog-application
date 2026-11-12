@@ -9,7 +9,7 @@ const envSchema = z.object({
   DB_USER: z.string().min(1),
   DB_HOST: z.string().min(1).default('localhost'),
   DB_PORT: z.coerce.number().int().min(1).max(65535).default(5432),
-  DB_PASSWORD: z.string().min(1),
+  DB_PASSWORD: z.string().min(8, 'DB_PASSWORD must be at least 8 characters'),
   DB_NAME: z.string().min(1),
   DB_POOL_MAX: z.coerce.number().int().min(1).max(50).default(10),
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
@@ -34,13 +34,67 @@ if (!parsed.success) {
   throw new Error(`Invalid environment configuration:\n${details}`)
 }
 
-const configuredCorsOrigins =
-  parsed.data.CORS_ORIGINS?.split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean) ?? []
+function parseCorsOrigins(raw: string | undefined): string[] {
+  const origins =
+    raw
+      ?.split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean) ?? []
+  const parsedOrigins: string[] = []
 
-if (parsed.data.NODE_ENV === 'production' && configuredCorsOrigins.length === 0) {
-  throw new Error('Invalid environment configuration: CORS_ORIGINS is required in production')
+  for (const origin of origins) {
+    let url: URL
+
+    try {
+      url = new URL(origin)
+    } catch {
+      throw new Error(
+        'Invalid environment configuration: CORS_ORIGINS must contain valid absolute URLs',
+      )
+    }
+
+    if (
+      url.username ||
+      url.password ||
+      url.search ||
+      url.hash ||
+      (url.pathname !== '/' && url.pathname !== '') ||
+      url.origin !== origin.replace(/\/$/, '')
+    ) {
+      throw new Error(
+        'Invalid environment configuration: CORS_ORIGINS entries must be exact origins without paths, credentials, queries, or fragments',
+      )
+    }
+
+    parsedOrigins.push(url.origin)
+  }
+
+  return parsedOrigins
+}
+
+const configuredCorsOrigins = parseCorsOrigins(parsed.data.CORS_ORIGINS)
+
+if (parsed.data.NODE_ENV === 'production') {
+  if (configuredCorsOrigins.length === 0) {
+    throw new Error('Invalid environment configuration: CORS_ORIGINS is required in production')
+  }
+
+  if (
+    /(change[-_ ]?me|replace[-_ ]?with|your[-_ ]|example|placeholder)/i.test(parsed.data.JWT_SECRET)
+  ) {
+    throw new Error('Invalid environment configuration: JWT_SECRET must not use a placeholder')
+  }
+
+  for (const origin of configuredCorsOrigins) {
+    const url = new URL(origin)
+    const isLoopback = ['localhost', '127.0.0.1', '::1'].includes(url.hostname)
+
+    if (url.protocol !== 'https:' && !isLoopback) {
+      throw new Error(
+        'Invalid environment configuration: CORS_ORIGINS must use https outside localhost',
+      )
+    }
+  }
 }
 
 const developmentCorsOrigins = [
