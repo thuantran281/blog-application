@@ -95,13 +95,26 @@ app.use('/api/posts', postRoutes)
 app.use('/api/comments', commentRoutes)
 
 if (clientBuildPath) {
-  app.use(express.static(clientBuildPath, { index: false }))
+  app.use(
+    '/assets',
+    express.static(path.join(clientBuildPath, 'assets'), {
+      immutable: true,
+      maxAge: '1y',
+    }),
+  )
+  app.use(express.static(clientBuildPath, { index: false, maxAge: 0 }))
   app.use((req, res, next) => {
-    if (req.method !== 'GET' || req.path.startsWith('/api') || req.path.startsWith('/health')) {
+    if (
+      req.method !== 'GET' ||
+      req.path.startsWith('/api') ||
+      req.path.startsWith('/health') ||
+      req.path.startsWith('/assets')
+    ) {
       next()
       return
     }
 
+    res.setHeader('Cache-Control', 'no-cache')
     res.sendFile(path.join(clientBuildPath, 'index.html'), (error) => {
       if (error) {
         next(error)

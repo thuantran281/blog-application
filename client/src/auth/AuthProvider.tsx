@@ -1,12 +1,21 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { api, getStoredToken, storeToken } from '../lib/api'
+import { api, getStoredToken, setUnauthorizedHandler, storeToken } from '../lib/api'
 import type { AuthUser } from '../types'
 import { AuthContext } from './context'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(() => getStoredToken() !== null)
+
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      storeToken(null)
+      setUser(null)
+    })
+
+    return () => setUnauthorizedHandler(null)
+  }, [])
 
   useEffect(() => {
     const token = getStoredToken()

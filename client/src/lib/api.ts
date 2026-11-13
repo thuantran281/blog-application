@@ -19,6 +19,13 @@ const API_URL = (
   (import.meta.env.MODE === 'development' ? 'http://localhost:3000' : '')
 ).replace(/\/+$/, '')
 const TOKEN_KEY = 'blog-api-token'
+const AUTH_ENDPOINTS = new Set(['/api/auth/login', '/api/auth/register'])
+
+let unauthorizedHandler: (() => void) | null = null
+
+export function setUnauthorizedHandler(handler: (() => void) | null): void {
+  unauthorizedHandler = handler
+}
 
 export class ApiError extends Error {
   readonly status: number
@@ -70,6 +77,11 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   }
 
   const response = await fetch(`${API_URL}${path}`, { ...init, headers })
+
+  if (response.status === 401 && token && !AUTH_ENDPOINTS.has(path)) {
+    storeToken(null)
+    unauthorizedHandler?.()
+  }
 
   if (response.status === 204) {
     return undefined as T
