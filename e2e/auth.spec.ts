@@ -35,4 +35,18 @@ test.describe('authentication', () => {
     await page.goto('/my-posts')
     await expect(page).toHaveURL(/\/login$/)
   })
+
+  test('clears a stale session when the API rejects the token', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.setItem('blog-api-token', 'invalid-token')
+    })
+
+    await page.goto('/write')
+
+    await expect(page).toHaveURL(/\/login$/)
+    await expect(page.getByRole('link', { name: 'Log in' })).toBeVisible()
+
+    const token = await page.evaluate(() => window.localStorage.getItem('blog-api-token'))
+    expect(token).toBeNull()
+  })
 })

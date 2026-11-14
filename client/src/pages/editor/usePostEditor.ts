@@ -9,7 +9,6 @@ import {
   loadLocalDraft,
   pruneLocalDrafts,
   removeLocalDraft,
-  saveLocalDraft,
   serializeDraftFields,
   type BylineMode,
   type DraftFields,
@@ -17,9 +16,9 @@ import {
 } from '../../lib/drafts'
 import type { AuthUser, Category, Tag } from '../../types'
 import type { EditorMode, EditorSaveStatus, SaveState } from './types'
-
-const LOCAL_AUTOSAVE_DELAY_MS = 800
-const SERVER_AUTOSAVE_DELAY_MS = 4000
+import { useLocalDraftAutosave } from './useLocalDraftAutosave'
+import { useServerAutosave } from './useServerAutosave'
+import { useUnsavedChanges } from './useUnsavedChanges'
 
 interface UsePostEditorOptions {
   mode: EditorMode
@@ -261,132 +260,20 @@ export function usePostEditor({ mode, slug, user }: UsePostEditorOptions) {
     }
   }, [mode, slug, user])
 
-  useEffect(() => {
-    if (!hydrated || !draftKey || !isDirty) {
-      return
-    }
+  useLocalDraftAutosave({
+    hydrated,
+    draftKey,
+    isDirty,
+    mode,
+    fields,
+    lastSavedSnapshotRef,
+    currentSnapshotRef,
+    versionRef,
+    setSaveState,
+    setSaveMessage,
+  })
 
-    const currentFields = fields
-
-    if (!hasDraftContent(currentFields)) {
-      removeLocalDraft(draftKey)
-      return
-    }
-
-    const timer = window.setTimeout(() => {
-      if (lastSavedSnapshotRef.current === currentSnapshotRef.current) {
-        return
-      }
-
-      const draft: LocalDraft = {
-        ...currentFields,
-        savedAt: new Date().toISOString(),
-        baseVersion: mode === 'edit' ? versionRef.current : null,
-      }
-
-      if (saveLocalDraft(draftKey, draft)) {
-        setSaveState((current) =>
-          current === 'conflict' || current === 'offline' ? current : 'local',
-        )
-      } else {
-        setSaveState('error')
-        setSaveMessage('Could not store a local draft in this browser.')
-      }
-    }, LOCAL_AUTOSAVE_DELAY_MS)
-
-    return () => window.clearTimeout(timer)
-  }, [hydrated, draftKey, isDirty, mode, fields])
-
-  useEffect(() => {
-    const { title, content, excerpt, status, categoryId, tagIds, bylineMode, customName } = fields
-
-    if (
-      mode !== 'edit' ||
-      !postId ||
-      !hydrated ||
-      recovery ||
-      savingRef.current ||
-      !isDirty ||
-      !title.trim() ||
-      !content.trim() ||
-      content.length > 100_000 ||
-      (bylineMode === 'custom' && !customName.trim()) ||
-      saveState === 'conflict' ||
-      saveState === 'offline' ||
-      saveState === 'error' ||
-      autosavePromiseRef.current
-    ) {
-      return
-    }
-
-    const requestPostId = postId
-    const timer = window.setTimeout(() => {
-      if (savingRef.current || postIdRef.current !== requestPostId) {
-        return
-      }
-
-      const sentSnapshot = snapshot
-      const sentVersion = versionRef.current
-
-      const requestPromise = api
-        .updatePost(requestPostId, {
-          version: sentVersion,
-          title: title.trim(),
-          content,
-          excerpt: excerpt.trim() || null,
-          status,
-          categoryId: categoryId || null,
-          tagIds,
-          displayName,
-        })
-        .then((updated) => {
-          if (postIdRef.current !== requestPostId) {
-            return
-          }
-
-          versionRef.current = updated.version
-          setVersion(updated.version)
-
-          if (currentSnapshotRef.current === sentSnapshot) {
-            lastSavedSnapshotRef.current = sentSnapshot
-            setLastSavedSnapshot(sentSnapshot)
-            if (draftKey) {
-              removeLocalDraft(draftKey)
-            }
-            setSaveState('saved')
-          } else {
-            setSaveState('dirty')
-          }
-
-          setSaveMessage(null)
-        })
-        .catch((saveError: unknown) => {
-          if (postIdRef.current !== requestPostId) {
-            return
-          }
-
-          if (saveError instanceof ApiError && saveError.status === 409) {
-            setSaveState('conflict')
-            setSaveMessage('Another session saved newer changes. Your draft is still stored locally.')
-            return
-          }
-
-          setSaveState(navigator.onLine ? 'error' : 'offline')
-          setSaveMessage('Autosave failed. Your draft is still stored locally.')
-        })
-        .finally(() => {
-          autosavePromiseRef.current = null
-
-          if (postIdRef.current === requestPostId) {
-            setRetryToken((token) => token + 1)
-          }
-        })
-
-      autosavePromiseRef.current = requestPromise
-    }, SERVER_AUTOSAVE_DELAY_MS)
-
-    return () => window.clearTimeout(timer)
-  }, [
+  useServerAutosave({
     mode,
     postId,
     hydrated,
@@ -398,44 +285,20 @@ export function usePostEditor({ mode, slug, user }: UsePostEditorOptions) {
     fields,
     displayName,
     draftKey,
-  ])
+    versionRef,
+    postIdRef,
+    lastSavedSnapshotRef,
+    currentSnapshotRef,
+    autosavePromiseRef,
+    savingRef,
+    setVersion,
+    setLastSavedSnapshot,
+    setSaveState,
+    setSaveMessage,
+    setRetryToken,
+  })
 
-  useEffect(() => {
-    const handleOffline = () => {
-      if (isDirty) {
-        setSaveState('offline')
-        setSaveMessage('You are offline. Your draft is stored locally.')
-      }
-    }
-
-    const handleOnline = () => {
-      setSaveState((current) => (current === 'offline' ? 'dirty' : current))
-      setRetryToken((token) => token + 1)
-    }
-
-    window.addEventListener('offline', handleOffline)
-    window.addEventListener('online', handleOnline)
-
-    return () => {
-      window.removeEventListener('offline', handleOffline)
-      window.removeEventListener('online', handleOnline)
-    }
-  }, [isDirty])
-
-  useEffect(() => {
-    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (!isDirty) {
-        return
-      }
-
-      event.preventDefault()
-      event.returnValue = ''
-    }
-
-    window.addEventListener('beforeunload', handleBeforeUnload)
-
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
-  }, [isDirty])
+  useUnsavedChanges({ isDirty, setSaveState, setSaveMessage, setRetryToken })
 
   function clearRecovery() {
     if (!recovery) {
