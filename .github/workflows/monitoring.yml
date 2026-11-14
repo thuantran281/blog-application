@@ -1,0 +1,95 @@
+name: Monitoring
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: monitoring
+  cancel-in-progress: false
+
+jobs:
+  check-site:
+    name: Check public site
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    env:
+      SITE_URL: ${{ vars.SITE_URL || 'https://thuantran-blog-staging.fly.dev' }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Check site health
+        run: npm run check:site
+
+      - name: Open failure issue
+        if: failure()
+        uses: actions/github-script@v7
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        with:
+          script: |
+            const title = `Site monitoring failed: ${process.env.SITE_URL}`
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100,
+            })
+
+            if (issues.some((issue) => issue.title === title)) {
+              return
+            }
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body: [
+                `The scheduled site check failed for ${process.env.SITE_URL}.`,
+                '',
+                `Workflow run: ${process.env.RUN_URL}`,
+              ].join('\n'),
+            })
+
+      - name: Close failure issue on recovery
+        if: success()
+        uses: actions/github-script@v7
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        with:
+          script: |
+            const title = `Site monitoring failed: ${process.env.SITE_URL}`
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100,
+            })
+
+            for (const issue of issues.filter((candidate) => candidate.title === title)) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `Recovered. Workflow run: ${process.env.RUN_URL}`,
+              })
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: 'closed',
+              })
+            }

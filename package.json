@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "check:secrets": "node scripts/check-secrets.mjs",
+    "check:site": "node scripts/check-site.mjs",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:install": "playwright install chromium"

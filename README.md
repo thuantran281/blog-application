@@ -302,6 +302,19 @@ On pushes to `main`, the `deploy-staging` job deploys to Fly.io after the test j
 
 The workflow only runs after the repository is pushed to GitHub.
 
+## Monitoring
+
+`.github/workflows/monitoring.yml` runs every 15 minutes and can also be started manually. It checks the public site's health endpoints, home page, sitemap, RSS feed, and `robots.txt`. On failure it opens a `Site monitoring failed: <url>` GitHub issue; when the site recovers, it comments on the issue and closes it.
+
+The workflow reads the optional `SITE_URL` repository variable and falls back to `https://thuantran-blog-staging.fly.dev`. Scheduled workflows run from the default branch, and GitHub may delay or disable schedules for inactive repositories.
+
+Run the same checks locally:
+
+```powershell
+npm run check:site
+$env:SITE_URL="http://localhost:3000"; npm run check:site
+```
+
 ## Staging deployment on Fly.io
 
 The repository includes a multi-stage `Dockerfile`, `fly.toml`, and a CI deploy job. The image builds the React client and serves it from the Express API on the same origin.
@@ -361,7 +374,45 @@ Restore into a new Postgres app, then point the application at it:
 fly postgres backup restore <restore-app-name> -a thuan-tran-blog-db --restore-target-name <backup-id>
 ```
 
-Fly Postgres is unmanaged; test the restore path before using it for production data.
+Fly Postgres is unmanaged; test the restore path before using it for production data. Do not cancel a restore while it is monitoring health checks, and use a unique temporary app name for each drill.
+
+### Restore drill
+
+1. Create a fresh backup and note its ID:
+
+   ```powershell
+   fly postgres backup create -a thuan-tran-blog-db
+   fly postgres backup list -a thuan-tran-blog-db
+   ```
+
+2. Restore the backup into a temporary app. Wait for the command to report that the cluster is healthy:
+
+   ```powershell
+   fly postgres backup restore thuantran-blog-restore-drill -a thuan-tran-blog-db --restore-target-name <backup-id>
+   ```
+
+3. Verify the restored data through the Postgres console:
+
+   ```powershell
+   fly postgres connect -a thuantran-blog-restore-drill
+   ```
+
+   ```sql
+   select count(*) from users;
+   select count(*) from posts;
+   select count(*) from comments;
+   select id, title, status, created_at from posts order by created_at desc limit 3;
+   \q
+   ```
+
+4. If the restored counts and latest post look correct, delete the temporary app so it does not keep billing:
+
+   ```powershell
+   fly apps destroy thuantran-blog-restore-drill --yes
+   fly apps list
+   ```
+
+The most recent drill was run on 2026-11-14 against backup `20261114T035532`. The temporary app restored successfully, reported 1 user, 1 draft post, and 0 comments/categories/tags, and was then destroyed.
 
 ## Production notes
 
