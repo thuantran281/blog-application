@@ -4,6 +4,7 @@ import { useAuth } from '../auth/context'
 import { Pagination } from '../components/Pagination'
 import { api, getErrorMessage } from '../lib/api'
 import { formatDate } from '../lib/format'
+import { DEFAULT_DESCRIPTION, DEFAULT_TITLE, usePageMeta } from '../lib/seo'
 import type { Category, PaginationMeta, PostSummary, Tag } from '../types'
 
 const PAGE_SIZE = 9
@@ -76,6 +77,12 @@ export function HomePage() {
       cancelled = true
     }
   }, [page, category, tag])
+
+  usePageMeta({
+    title: DEFAULT_TITLE,
+    description: DEFAULT_DESCRIPTION,
+    canonicalPath: '/',
+  })
 
   function setFilter(key: 'category' | 'tag', value: string) {
     const next = new URLSearchParams(searchParams)

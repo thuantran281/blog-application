@@ -65,6 +65,7 @@ export function Layout() {
           <nav className="footer-nav" aria-label="Footer">
             <Link to="/">Home</Link>
             {user && <Link to="/write">Write</Link>}
+            <a href="/rss.xml">RSS</a>
             <a
               href="https://github.com/thuantran281/blog-application"
               target="_blank"

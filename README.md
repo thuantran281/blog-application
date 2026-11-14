@@ -14,6 +14,7 @@ A full-stack blog platform with authentication, publishing workflows, comments, 
 - Admin-only category/tag management at `/admin/taxonomy`
 - Guest and member comments
 - Pagination and post filtering
+- RSS feed, XML sitemap, robots.txt, and per-post SEO metadata
 - Responsive React client with light/dark styling
 - Security headers, CORS allowlisting, rate limiting, request IDs, and health checks
 
@@ -225,6 +226,9 @@ The tests use the admin credentials `postman_admin@example.com` / `password123` 
 | `GET` | `/` | Public database check, or SPA when `CLIENT_DIST_PATH` is set |
 | `GET` | `/health/live` | Public liveness check |
 | `GET` | `/health/ready` | Public readiness check |
+| `GET` | `/sitemap.xml` | Public sitemap of published posts |
+| `GET` | `/rss.xml` | Public RSS feed of published posts |
+| `GET` | `/robots.txt` | Public crawler rules and sitemap reference |
 | `POST` | `/api/auth/register` | Public |
 | `POST` | `/api/auth/login` | Public |
 | `GET` | `/api/auth/me` | Authenticated |

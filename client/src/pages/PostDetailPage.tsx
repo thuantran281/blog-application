@@ -6,6 +6,13 @@ import { useAuth } from '../auth/context'
 import { api, getErrorMessage } from '../lib/api'
 import { createRequestId } from '../lib/drafts'
 import { formatDate } from '../lib/format'
+import {
+  DEFAULT_DESCRIPTION,
+  DEFAULT_TITLE,
+  postDescription,
+  SITE_NAME,
+  usePageMeta,
+} from '../lib/seo'
 import type { Comment, Post } from '../types'
 
 export function PostDetailPage() {
@@ -93,6 +100,18 @@ export function PostDetailPage() {
       cancelled = true
     }
   }, [slug, isPublished])
+
+  usePageMeta({
+    enabled: !postLoading || missingSlug,
+    title: post ? `${post.title} — ${SITE_NAME}` : DEFAULT_TITLE,
+    description: post ? postDescription(post) : DEFAULT_DESCRIPTION,
+    canonicalPath: slug ? `/posts/${encodeURIComponent(post?.slug ?? slug)}` : '/',
+    type: post?.status === 'published' ? 'article' : 'website',
+    publishedAt: post?.published_at ?? null,
+    modifiedAt: post?.updated_at ?? null,
+    author: post?.author_name ?? null,
+    noIndex: !post || post.status !== 'published' || Boolean(error),
+  })
 
   async function handleCommentSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
