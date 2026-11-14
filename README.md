@@ -4,7 +4,7 @@ A full-stack blog platform with authentication, publishing workflows, comments, 
 
 ## Features
 
-- User registration and JWT authentication
+- User registration and JWT authentication with httpOnly session cookies
 - Draft and published posts with ownership checks
 - Local draft backup and recovery, plus bounded autosave for existing posts
 - Optimistic post concurrency (`version`) and idempotent post/comment retries
@@ -25,7 +25,7 @@ A full-stack blog platform with authentication, publishing workflows, comments, 
 | Client | React 19, TypeScript, Vite, React Router |
 | Server | Node.js, Express 5, TypeScript, Zod |
 | Database | PostgreSQL |
-| Auth | JWT, bcryptjs |
+| Auth | JWT, httpOnly session cookies, bcryptjs |
 | Testing | Vitest, Supertest, Newman, Playwright |
 | CI | GitHub Actions |
 
@@ -35,6 +35,7 @@ A full-stack blog platform with authentication, publishing workflows, comments, 
 .
 ├── client/                     React frontend
 ├── e2e/                        Playwright browser tests
+├── BACKLOG.md                  Prioritized improvement backlog
 ├── server/                     Express API
 │   ├── db/migrations/          SQL migrations
 │   ├── scripts/                Admin bootstrap scripts
@@ -154,7 +155,7 @@ VITE_API_URL=http://localhost:3000
 | `DB_POOL_MAX` | No | `10` | Maximum PostgreSQL pool size |
 | `TEST_DB_NAME` | No | `blog_db_test` | Test database name |
 | `JWT_SECRET` | Yes | - | JWT signing secret, minimum 32 characters |
-| `JWT_EXPIRES_IN` | No | `7d` | Token lifetime |
+| `JWT_EXPIRES_IN` | No | `7d` | Session and token lifetime |
 | `CORS_ORIGINS` | Production | local dev origins | Comma-separated allowed browser origins |
 | `JSON_BODY_LIMIT` | No | `100kb` | Maximum JSON request body size |
 | `CLIENT_DIST_PATH` | No | - | Serve the built client from this directory |
@@ -231,7 +232,9 @@ The tests use the admin credentials `postman_admin@example.com` / `password123` 
 | `GET` | `/robots.txt` | Public crawler rules and sitemap reference |
 | `POST` | `/api/auth/register` | Public |
 | `POST` | `/api/auth/login` | Public |
+| `GET` | `/api/auth/csrf` | Public; issues a CSRF token |
 | `GET` | `/api/auth/me` | Authenticated |
+| `POST` | `/api/auth/logout` | Session cookie; clears auth cookies |
 | `GET` | `/api/categories` | Public |
 | `GET` | `/api/categories/:slug` | Public |
 | `POST` | `/api/categories` | Admin |
@@ -253,6 +256,8 @@ The tests use the admin credentials `postman_admin@example.com` / `password123` 
 | `DELETE` | `/api/comments/:id` | Comment owner |
 
 `PATCH /api/posts/:id` must include the current post `version`. A stale version returns `409` with the current post in `details.current`. Post and comment creation accept an optional UUID `clientRequestId`; retrying with the same ID returns the previously created row instead of creating a duplicate. Post slugs stay stable after creation.
+
+Browser sessions use an httpOnly `blog_session` cookie. Unsafe requests authenticated by that cookie must send the readable `blog_csrf` cookie value in the `X-CSRF-Token` header. API clients can continue to use `Authorization: Bearer <token>`; Bearer requests do not require a CSRF token.
 
 ## Testing
 
@@ -429,4 +434,8 @@ The most recent drill was run on 2026-11-14 against backup `20261114T035532`. Th
 - Build and start the server with `npm run build` and `npm start`.
 - Build the client with `npm run build` and serve `client/dist`.
 
-Authentication currently stores JWTs in browser `localStorage`. For a higher-security production setup, consider moving to `httpOnly`, `Secure`, `SameSite` cookies with CSRF protection.
+Browser authentication uses an httpOnly `blog_session` cookie with `SameSite=Lax`; the cookie is `Secure` when `NODE_ENV=production`. A readable `blog_csrf` cookie and the `X-CSRF-Token` header provide double-submit CSRF protection. The client no longer stores JWTs in `localStorage`, and the API still accepts Bearer tokens for scripts and API clients.
+
+## Backlog
+
+See [BACKLOG.md](BACKLOG.md) for prioritized security, maintenance, and quality work.

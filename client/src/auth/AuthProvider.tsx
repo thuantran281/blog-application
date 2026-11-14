@@ -1,29 +1,31 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { api, getStoredToken, setUnauthorizedHandler, storeToken } from '../lib/api'
+import { api, setUnauthorizedHandler } from '../lib/api'
 import type { AuthUser } from '../types'
 import { AuthContext } from './context'
 
+const LEGACY_TOKEN_KEY = 'blog-api-token'
+
+function removeLegacyToken(): void {
+  try {
+    localStorage.removeItem(LEGACY_TOKEN_KEY)
+  } catch {
+    return
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
-  const [loading, setLoading] = useState(() => getStoredToken() !== null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    setUnauthorizedHandler(() => {
-      storeToken(null)
-      setUser(null)
-    })
+    removeLegacyToken()
+    setUnauthorizedHandler(() => setUser(null))
 
     return () => setUnauthorizedHandler(null)
   }, [])
 
   useEffect(() => {
-    const token = getStoredToken()
-
-    if (!token) {
-      return
-    }
-
     let cancelled = false
 
     api
@@ -35,7 +37,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
       .catch(() => {
         if (!cancelled) {
-          storeToken(null)
           setUser(null)
         }
       })
@@ -52,18 +53,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     const auth = await api.login({ email, password })
-    storeToken(auth.token)
     setUser(auth.user)
   }, [])
 
   const register = useCallback(async (username: string, email: string, password: string) => {
     const auth = await api.register({ username, email, password })
-    storeToken(auth.token)
     setUser(auth.user)
   }, [])
 
-  const logout = useCallback(() => {
-    storeToken(null)
+  const logout = useCallback(async () => {
+    await api.logout().catch(async () => {
+      await api.csrf().catch(() => undefined)
+      await api.logout().catch(() => undefined)
+    })
+
     setUser(null)
   }, [])
 

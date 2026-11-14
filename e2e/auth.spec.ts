@@ -36,7 +36,26 @@ test.describe('authentication', () => {
     await expect(page).toHaveURL(/\/login$/)
   })
 
-  test('clears a stale session when the API rejects the token', async ({ page }) => {
+  test('keeps the session after reload without storing a token', async ({ page }) => {
+    await loginViaUi(page)
+    await page.reload()
+
+    await expect(page.locator('.user-chip')).toHaveText(adminCredentials.username)
+
+    const token = await page.evaluate(() => window.localStorage.getItem('blog-api-token'))
+    expect(token).toBeNull()
+  })
+
+  test('ignores an invalid session cookie and clears the legacy token', async ({ page }) => {
+    await page.context().addCookies([
+      {
+        name: 'blog_session',
+        value: 'invalid-token',
+        url: 'http://127.0.0.1:3100',
+        httpOnly: true,
+        sameSite: 'Lax',
+      },
+    ])
     await page.addInitScript(() => {
       window.localStorage.setItem('blog-api-token', 'invalid-token')
     })

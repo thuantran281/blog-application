@@ -1,30 +1,18 @@
 import type { NextFunction, Request, Response } from 'express'
 import jwt from 'jsonwebtoken'
 import { JWT_SECRET } from '../config/auth.js'
+import { SESSION_COOKIE, readCookie } from '../lib/cookies.js'
 import type { AuthUser, UserRole } from '../types/auth.js'
 import { HttpError } from './error.js'
 
 const ROLES: UserRole[] = ['admin', 'member', 'viewer']
+const UNAUTHENTICATED_AUTH_PATHS = new Set(['/api/auth/login', '/api/auth/register'])
 
 function isRole(value: unknown): value is UserRole {
   return typeof value === 'string' && ROLES.includes(value as UserRole)
 }
 
-function parseAuthUser(header: string | undefined): AuthUser | null {
-  if (!header) {
-    return null
-  }
-
-  if (!header.startsWith('Bearer ')) {
-    throw new HttpError(401, 'Invalid authorization header')
-  }
-
-  const token = header.slice('Bearer '.length).trim()
-
-  if (!token) {
-    throw new HttpError(401, 'Authentication required')
-  }
-
+function parseToken(token: string): AuthUser {
   let payload: string | jwt.JwtPayload
 
   try {
@@ -51,14 +39,57 @@ function parseAuthUser(header: string | undefined): AuthUser | null {
   }
 }
 
-export function requireAuth(req: Request, res: Response, next: NextFunction) {
-  const user = parseAuthUser(req.headers.authorization)
+function parseAuthorizationHeader(header: string): AuthUser {
+  if (!header.startsWith('Bearer ')) {
+    throw new HttpError(401, 'Invalid authorization header')
+  }
 
-  if (!user) {
+  const token = header.slice('Bearer '.length).trim()
+
+  if (!token) {
     throw new HttpError(401, 'Authentication required')
   }
 
-  req.user = user
+  return parseToken(token)
+}
+
+export function authenticate(req: Request, res: Response, next: NextFunction) {
+  const pathname = req.originalUrl.split('?')[0] ?? ''
+
+  if (UNAUTHENTICATED_AUTH_PATHS.has(pathname)) {
+    next()
+    return
+  }
+
+  const header = req.headers.authorization
+
+  if (header) {
+    req.user = parseAuthorizationHeader(header)
+    req.authSource = 'bearer'
+    next()
+    return
+  }
+
+  const token = readCookie(req, SESSION_COOKIE)
+
+  if (token) {
+    try {
+      req.user = parseToken(token)
+      req.authSource = 'cookie'
+    } catch {
+      delete req.user
+      delete req.authSource
+    }
+  }
+
+  next()
+}
+
+export function requireAuth(req: Request, res: Response, next: NextFunction) {
+  if (!req.user) {
+    throw new HttpError(401, 'Authentication required')
+  }
+
   next()
 }
 
@@ -67,16 +98,6 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction) {
 
   if (user.role !== 'admin') {
     throw new HttpError(403, 'Admin access required')
-  }
-
-  next()
-}
-
-export function optionalAuth(req: Request, res: Response, next: NextFunction) {
-  const user = parseAuthUser(req.headers.authorization)
-
-  if (user) {
-    req.user = user
   }
 
   next()

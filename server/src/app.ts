@@ -7,6 +7,8 @@ import pool from './config/db.js'
 import { corsOrigins, env } from './config/env.js'
 import { logger } from './lib/logger.js'
 import { buildDefaultMeta, buildPostMeta, renderIndexHtml, siteUrlFromRequest } from './lib/seo.js'
+import { authenticate } from './middleware/auth.js'
+import { csrfProtection } from './middleware/csrf.js'
 import { errorHandler, notFoundHandler } from './middleware/error.js'
 import { apiLimiter } from './middleware/rateLimit.js'
 import { requestLogger } from './middleware/requestLogger.js'
@@ -84,13 +86,16 @@ app.use(
       callback(null, isAllowedOrigin(origin))
     },
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
     exposedHeaders: ['X-Request-Id'],
+    credentials: true,
     maxAge: 600,
   }),
 )
 app.use(express.json({ limit: env.JSON_BODY_LIMIT }))
 app.use('/api', apiLimiter)
+app.use('/api', authenticate)
+app.use('/api', csrfProtection)
 
 app.get('/health/live', (req, res) => {
   res.json({ status: 'ok' })

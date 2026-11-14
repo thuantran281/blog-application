@@ -18,8 +18,16 @@ const API_URL = (
   import.meta.env.VITE_API_URL ??
   (import.meta.env.MODE === 'development' ? 'http://localhost:3000' : '')
 ).replace(/\/+$/, '')
-const TOKEN_KEY = 'blog-api-token'
-const AUTH_ENDPOINTS = new Set(['/api/auth/login', '/api/auth/register'])
+const CSRF_COOKIE = 'blog_csrf'
+const CSRF_HEADER = 'X-CSRF-Token'
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
+const AUTH_ENDPOINTS = new Set([
+  '/api/auth/login',
+  '/api/auth/register',
+  '/api/auth/me',
+  '/api/auth/logout',
+  '/api/auth/csrf',
+])
 
 let unauthorizedHandler: (() => void) | null = null
 
@@ -39,24 +47,30 @@ export class ApiError extends Error {
   }
 }
 
-export function getStoredToken(): string | null {
-  try {
-    return localStorage.getItem(TOKEN_KEY)
-  } catch {
+function getCookie(name: string): string | null {
+  if (typeof document === 'undefined') {
     return null
   }
-}
 
-export function storeToken(token: string | null): void {
-  try {
-    if (token) {
-      localStorage.setItem(TOKEN_KEY, token)
-    } else {
-      localStorage.removeItem(TOKEN_KEY)
+  const prefix = `${name}=`
+
+  for (const part of document.cookie.split(';')) {
+    const value = part.trim()
+
+    if (!value.startsWith(prefix)) {
+      continue
     }
-  } catch {
-    return
+
+    const rawValue = value.slice(prefix.length)
+
+    try {
+      return decodeURIComponent(rawValue)
+    } catch {
+      return rawValue
+    }
   }
+
+  return null
 }
 
 function toQuery(params: Record<string, string | number | null | undefined>): string {
@@ -74,20 +88,27 @@ function toQuery(params: Record<string, string | number | null | undefined>): st
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers)
-  const token = getStoredToken()
+  const method = (init.method ?? 'GET').toUpperCase()
 
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`)
+  if (!SAFE_METHODS.has(method)) {
+    const csrfToken = getCookie(CSRF_COOKIE)
+
+    if (csrfToken) {
+      headers.set(CSRF_HEADER, csrfToken)
+    }
   }
 
   if (init.body !== undefined && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
   }
 
-  const response = await fetch(`${API_URL}${path}`, { ...init, headers })
+  const response = await fetch(`${API_URL}${path}`, {
+    ...init,
+    headers,
+    credentials: 'include',
+  })
 
-  if (response.status === 401 && token && !AUTH_ENDPOINTS.has(path)) {
-    storeToken(null)
+  if (response.status === 401 && !AUTH_ENDPOINTS.has(path)) {
     unauthorizedHandler?.()
   }
 
@@ -138,6 +159,16 @@ export const api = {
 
   me() {
     return request<{ data: AuthUser }>('/api/auth/me').then((response) => response.data)
+  },
+
+  csrf() {
+    return request<{ data: { csrfToken: string } }>('/api/auth/csrf').then(
+      (response) => response.data.csrfToken,
+    )
+  },
+
+  logout() {
+    return request<void>('/api/auth/logout', { method: 'POST' })
   },
 
   listPosts(params: {

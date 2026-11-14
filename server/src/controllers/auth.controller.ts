@@ -1,6 +1,13 @@
 import type { Request, Response } from 'express'
 import jwt from 'jsonwebtoken'
 import { JWT_EXPIRES_IN, JWT_SECRET } from '../config/auth.js'
+import {
+  clearCsrfCookie,
+  clearSessionCookie,
+  ensureCsrfCookie,
+  issueCsrfCookie,
+  setSessionCookie,
+} from '../lib/cookies.js'
 import { getAuthUser } from '../middleware/auth.js'
 import { HttpError } from '../middleware/error.js'
 import { loginSchema, registerSchema } from '../schemas/auth.schema.js'
@@ -36,10 +43,14 @@ export async function register(req: Request, res: Response) {
     throw err
   }
 
+  const token = signToken(user)
+  setSessionCookie(res, token)
+  issueCsrfCookie(res)
+  res.setHeader('Cache-Control', 'no-store')
   res.status(201).json({
     data: {
       user: toAuthUser(user),
-      token: signToken(user),
+      token,
     },
   })
 }
@@ -52,10 +63,14 @@ export async function login(req: Request, res: Response) {
     throw new HttpError(401, 'Invalid email or password')
   }
 
+  const token = signToken(user)
+  setSessionCookie(res, token)
+  issueCsrfCookie(res)
+  res.setHeader('Cache-Control', 'no-store')
   res.json({
     data: {
       user: toAuthUser(user),
-      token: signToken(user),
+      token,
     },
   })
 }
@@ -68,5 +83,20 @@ export async function me(req: Request, res: Response) {
     throw new HttpError(401, 'User no longer exists')
   }
 
+  ensureCsrfCookie(req, res)
+  res.setHeader('Cache-Control', 'no-store')
   res.json({ data: toAuthUser(user) })
+}
+
+export function logout(req: Request, res: Response) {
+  clearSessionCookie(res)
+  clearCsrfCookie(res)
+  res.setHeader('Cache-Control', 'no-store')
+  res.status(204).end()
+}
+
+export function csrf(req: Request, res: Response) {
+  const token = ensureCsrfCookie(req, res)
+  res.setHeader('Cache-Control', 'no-store')
+  res.json({ data: { csrfToken: token } })
 }
