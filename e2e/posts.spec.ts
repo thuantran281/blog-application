@@ -11,6 +11,20 @@ async function setEditorContent(page: Page, markdown: string) {
   await editor.fill(markdown)
 }
 
+async function getStoredDraft(page: Page) {
+  return page.evaluate(() => {
+    const key = Object.keys(window.localStorage).find((item) => item.startsWith('blog-draft:'))
+    const raw = key ? window.localStorage.getItem(key) : null
+
+    if (!raw) {
+      return null
+    }
+
+    const draft = JSON.parse(raw) as { title?: string; content?: string }
+    return { title: draft.title, content: draft.content }
+  })
+}
+
 test.describe('posts and comments', () => {
   test('creates, edits, and deletes a post through the UI', async ({ page, e2eRun }) => {
     const title = `${e2eRun.prefix} browser post`
@@ -58,6 +72,7 @@ test.describe('posts and comments', () => {
     await page.getByLabel('Title').fill(title)
     await setEditorContent(page, draftContent)
     await expect(page.getByText('Draft stored locally.')).toBeVisible()
+    await expect.poll(() => getStoredDraft(page)).toEqual({ title, content: draftContent })
 
     await page.reload()
 
