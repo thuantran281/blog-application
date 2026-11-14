@@ -2,9 +2,20 @@
   "info": {
     "_postman_id": "b1a7f3c2-6d4e-4f8a-9c1b-2e5d7a0f3b6c",
     "name": "Blog API",
-    "description": "MVP collection for the Blog API. Run the folders in order (Auth -> Categories -> Tags -> Posts -> Comments -> Cleanup). Register requests generate unique credentials; tokens and IDs are stored as collection variables. Taxonomy writes require an admin: seed one with npm run seed-admin using the adminEmail/adminPassword collection variables before running.",
+    "description": "MVP collection for the Blog API. Run the folders in order (Auth -> Categories -> Tags -> Posts -> Comments -> Cleanup). Register requests generate unique credentials; tokens and IDs are stored as collection variables. Taxonomy writes require an admin: seed one with npm run seed-admin using the adminEmail/adminPassword collection variables before running. Each request clears the cookie jar so the collection tests Bearer-token auth rather than browser cookies.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.cookies.jar().clear(pm.variables.get('baseUrl'), function () {})"
+        ]
+      }
+    }
+  ],
   "variable": [
     { "key": "baseUrl", "value": "http://localhost:3000" },
     { "key": "accessToken", "value": "" },
