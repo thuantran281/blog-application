@@ -93,23 +93,27 @@ const pool = new pg.Pool({
   port: Number(process.env.DB_PORT) || 5432,
 })
 
+const client = await pool.connect()
+
 try {
   const passwordHash = await bcrypt.hash(password, 10)
 
-  let result = await pool.query(
+  await client.query('BEGIN')
+
+  let result = await client.query(
     `UPDATE users
      SET password_hash = $2
      WHERE lower(email) = lower($1)
-     RETURNING username, email`,
+     RETURNING id, username, email`,
     [identifier, passwordHash],
   )
 
   if (result.rowCount === 0) {
-    result = await pool.query(
+    result = await client.query(
       `UPDATE users
        SET password_hash = $2
        WHERE username = $1
-       RETURNING username, email`,
+       RETURNING id, username, email`,
       [identifier, passwordHash],
     )
   }
@@ -117,17 +121,20 @@ try {
   const user = result.rows[0]
 
   if (!user) {
+    await client.query('ROLLBACK')
     console.error(`No user found for "${identifier}"`)
     process.exitCode = 1
   } else {
+    await client.query('DELETE FROM sessions WHERE user_id = $1', [user.id])
+    await client.query('COMMIT')
     console.log(`Password reset for ${user.username} <${user.email}>.`)
-    console.log(
-      'Existing JWT sessions remain valid until they expire. Log in with the new password.',
-    )
+    console.log('Existing sessions have been revoked. Log in with the new password.')
   }
 } catch (err) {
+  await client.query('ROLLBACK').catch(() => {})
   console.error('Failed to reset password:', err.message)
   process.exitCode = 1
 } finally {
+  client.release()
   await pool.end()
 }

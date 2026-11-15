@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
+import jwt from 'jsonwebtoken'
 import request from 'supertest'
-import { app, registerUser, resetDb } from './helpers.js'
+import { app, pool, registerUser, resetDb } from './helpers.js'
 
 function setCookieHeaders(res: { headers: unknown }): string[] {
   const headers = res.headers as Record<string, string | string[] | undefined>
@@ -51,6 +52,59 @@ describe('auth', () => {
 
     expect(sessionCookie).toMatch(/HttpOnly/i)
     expect(sessionCookie).toMatch(/SameSite=Lax/i)
+  })
+
+  it('creates a server-side session for each login', async () => {
+    const { id, token } = await registerUser()
+    const payload = jwt.decode(token) as { sid?: string }
+
+    expect(typeof payload.sid).toBe('string')
+
+    const session = await pool.query<{ user_id: string }>(
+      'SELECT user_id FROM sessions WHERE id = $1',
+      [payload.sid],
+    )
+
+    expect(session.rows[0]?.user_id).toBe(id)
+  })
+
+  it('revokes the current token and cookie session on logout', async () => {
+    const { token } = await registerUser()
+    const logout = await request(app)
+      .post('/api/auth/logout')
+      .set('Authorization', `Bearer ${token}`)
+
+    expect(logout.status).toBe(204)
+
+    const replayToken = await request(app)
+      .get('/api/auth/me')
+      .set('Authorization', `Bearer ${token}`)
+    const replayCookie = await request(app)
+      .get('/api/auth/me')
+      .set('Cookie', `blog_session=${token}`)
+
+    expect(replayToken.status).toBe(401)
+    expect(replayCookie.status).toBe(401)
+  })
+
+  it('revokes only the session used to log out', async () => {
+    const { user, token: firstToken } = await registerUser()
+    const secondLogin = await request(app)
+      .post('/api/auth/login')
+      .send({ email: user.email, password: user.password })
+    const secondToken = secondLogin.body.data.token as string
+
+    await request(app).post('/api/auth/logout').set('Authorization', `Bearer ${firstToken}`)
+
+    const first = await request(app)
+      .get('/api/auth/me')
+      .set('Authorization', `Bearer ${firstToken}`)
+    const second = await request(app)
+      .get('/api/auth/me')
+      .set('Authorization', `Bearer ${secondToken}`)
+
+    expect(first.status).toBe(401)
+    expect(second.status).toBe(200)
   })
 
   it('rejects a duplicate email case-insensitively with 409', async () => {

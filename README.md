@@ -4,7 +4,7 @@ A full-stack blog platform with authentication, publishing workflows, comments, 
 
 ## Features
 
-- User registration and JWT authentication with httpOnly session cookies
+- User registration and revocable JWT sessions with httpOnly cookies
 - Draft and published posts with ownership checks
 - Local draft backup and recovery, plus bounded autosave for existing posts
 - Optimistic post concurrency (`version`) and idempotent post/comment retries
@@ -25,7 +25,7 @@ A full-stack blog platform with authentication, publishing workflows, comments, 
 | Client | React 19, TypeScript, Vite, React Router |
 | Server | Node.js, Express 5, TypeScript, Zod |
 | Database | PostgreSQL |
-| Auth | JWT, httpOnly session cookies, bcryptjs |
+| Auth | JWT, revocable server-side sessions, bcryptjs |
 | Testing | Vitest, Supertest, Newman, Playwright |
 | CI | GitHub Actions |
 
@@ -35,7 +35,6 @@ A full-stack blog platform with authentication, publishing workflows, comments, 
 .
 ├── client/                     React frontend
 ├── e2e/                        Playwright browser tests
-├── BACKLOG.md                  Prioritized improvement backlog
 ├── server/                     Express API
 │   ├── db/migrations/          SQL migrations
 │   ├── scripts/                Admin bootstrap scripts
@@ -117,7 +116,7 @@ To reset a user's password locally:
 npm run reset-password -- user@example.com
 ```
 
-You will be prompted for the new password twice. Existing JWT sessions remain valid until they expire.
+You will be prompted for the new password twice. Existing sessions are revoked.
 
 ### 3. Start the client
 
@@ -436,6 +435,4 @@ The most recent drill was run on 2026-11-14 against backup `20261114T035532`. Th
 
 Browser authentication uses an httpOnly `blog_session` cookie with `SameSite=Lax`; the cookie is `Secure` when `NODE_ENV=production`. A readable `blog_csrf` cookie and the `X-CSRF-Token` header provide double-submit CSRF protection. The client no longer stores JWTs in `localStorage`, and the API still accepts Bearer tokens for scripts and API clients.
 
-## Backlog
-
-See [BACKLOG.md](BACKLOG.md) for prioritized security, maintenance, and quality work.
+JWTs are backed by server-side sessions. Logging out revokes the current session, and password resets revoke all sessions for that user.

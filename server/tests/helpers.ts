@@ -13,7 +13,7 @@ function uniqueSuffix() {
 
 export async function resetDb() {
   await pool.query(
-    'TRUNCATE TABLE post_tags, comments, posts, categories, tags, users RESTART IDENTITY CASCADE',
+    'TRUNCATE TABLE sessions, post_tags, comments, posts, categories, tags, users RESTART IDENTITY CASCADE',
   )
 }
 

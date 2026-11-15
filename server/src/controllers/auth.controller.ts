@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import type { Request, Response } from 'express'
 import jwt from 'jsonwebtoken'
 import { JWT_EXPIRES_IN, JWT_SECRET } from '../config/auth.js'
@@ -20,12 +21,36 @@ import {
   verifyPassword,
   type User,
 } from '../services/auth.service.js'
+import { createSession, revokeSession } from '../services/session.service.js'
 
-function signToken(user: User): string {
-  return jwt.sign({ username: user.username, email: user.email, role: user.role }, JWT_SECRET, {
-    subject: user.id,
-    expiresIn: JWT_EXPIRES_IN,
-  })
+function signToken(user: User, sessionId: string): string {
+  return jwt.sign(
+    { username: user.username, email: user.email, role: user.role, sid: sessionId },
+    JWT_SECRET,
+    {
+      subject: user.id,
+      expiresIn: JWT_EXPIRES_IN,
+    },
+  )
+}
+
+function tokenExpiresAt(token: string): Date {
+  const payload = jwt.decode(token)
+
+  if (typeof payload === 'string' || typeof payload?.exp !== 'number') {
+    throw new Error('Token is missing an expiration')
+  }
+
+  return new Date(payload.exp * 1000)
+}
+
+async function createUserSession(user: User): Promise<string> {
+  const sessionId = randomUUID()
+  const token = signToken(user, sessionId)
+
+  await createSession(sessionId, user.id, tokenExpiresAt(token))
+
+  return token
 }
 
 export async function register(req: Request, res: Response) {
@@ -43,7 +68,7 @@ export async function register(req: Request, res: Response) {
     throw err
   }
 
-  const token = signToken(user)
+  const token = await createUserSession(user)
   setSessionCookie(res, token)
   issueCsrfCookie(res)
   res.setHeader('Cache-Control', 'no-store')
@@ -63,7 +88,7 @@ export async function login(req: Request, res: Response) {
     throw new HttpError(401, 'Invalid email or password')
   }
 
-  const token = signToken(user)
+  const token = await createUserSession(user)
   setSessionCookie(res, token)
   issueCsrfCookie(res)
   res.setHeader('Cache-Control', 'no-store')
@@ -88,7 +113,11 @@ export async function me(req: Request, res: Response) {
   res.json({ data: toAuthUser(user) })
 }
 
-export function logout(req: Request, res: Response) {
+export async function logout(req: Request, res: Response) {
+  if (req.user && req.sessionId) {
+    await revokeSession(req.sessionId, req.user.id)
+  }
+
   clearSessionCookie(res)
   clearCsrfCookie(res)
   res.setHeader('Cache-Control', 'no-store')

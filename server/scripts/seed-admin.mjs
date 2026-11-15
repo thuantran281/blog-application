@@ -38,7 +38,8 @@ try {
       passwordHash,
       'admin',
     ])
-    console.log(`Reset password and promoted existing user <${email}> to admin.`)
+    await client.query('DELETE FROM sessions WHERE user_id = $1', [current.id])
+    console.log(`Reset password, revoked sessions, and promoted existing user <${email}> to admin.`)
   } else {
     await client.query(
       `INSERT INTO users (username, email, password_hash, role)
