@@ -206,7 +206,11 @@ export function PostDetailPage() {
   }
 
   if (postLoading) {
-    return <p className="page-status">Loading post…</p>
+    return (
+      <p className="page-status" role="status">
+        Loading post…
+      </p>
+    )
   }
 
   if (error || !post) {
@@ -229,7 +233,7 @@ export function PostDetailPage() {
       <article className="post-detail">
         <div className="post-detail-top">
           <Link to="/" className="back-link">
-            ← All posts
+            <span aria-hidden="true">← </span>All posts
           </Link>
           {post.status === 'draft' && <span className="badge badge-draft">Draft</span>}
         </div>
@@ -274,10 +278,16 @@ export function PostDetailPage() {
             </span>
           </div>
 
-          {actionError && <p className="error">{actionError}</p>}
+          {actionError && (
+            <p className="error" role="alert">
+              {actionError}
+            </p>
+          )}
 
           {commentsLoading ? (
-            <p className="page-status">Loading comments…</p>
+            <p className="page-status" role="status">
+              Loading comments…
+            </p>
           ) : comments.length === 0 ? (
             <p className="muted">No comments yet. Start the conversation.</p>
           ) : (

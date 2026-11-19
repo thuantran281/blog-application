@@ -78,8 +78,8 @@ export function EditorForm({
       </label>
 
       <div className="editor-field">
-        <span>Content</span>
-        <Suspense fallback={<p className="muted">Loading editor…</p>}>
+        <span id="post-content-label">Content</span>
+        <Suspense fallback={<p className="muted" role="status">Loading editor…</p>}>
           <RichTextEditor
             key={editorKey}
             markdown={fields.content}

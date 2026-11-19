@@ -42,7 +42,11 @@ export function RegisterPage() {
         <h1>Create your account</h1>
         <p className="muted">Join the community and start publishing.</p>
 
-        {error && <p className="error">{error}</p>}
+        {error && (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        )}
 
         <form className="stack-sm" onSubmit={handleSubmit}>
           <label>

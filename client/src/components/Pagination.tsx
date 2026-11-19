@@ -20,7 +20,7 @@ export function Pagination({ page, totalPages, onChange, disabled = false }: Pag
       >
         Previous
       </button>
-      <span className="muted">
+      <span className="muted" aria-live="polite" aria-atomic="true">
         Page {page} of {totalPages}
       </span>
       <button

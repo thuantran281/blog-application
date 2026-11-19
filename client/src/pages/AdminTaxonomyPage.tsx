@@ -118,13 +118,18 @@ function TaxonomyManager<T extends TaxonomyItem>({
         <span className="muted">{items.length}</span>
       </div>
 
-      {error && <p className="error">{error}</p>}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
 
       <form className="taxonomy-form" onSubmit={handleCreate}>
         <input
           value={newName}
           onChange={(event) => setNewName(event.target.value)}
           placeholder={`New ${label} name`}
+          aria-label={`New ${label} name`}
           maxLength={100}
           required
         />
@@ -247,10 +252,16 @@ export function AdminTaxonomyPage() {
         </div>
       </section>
 
-      {error && <p className="error">{error}</p>}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
 
       {loading ? (
-        <p className="page-status">Loading taxonomy…</p>
+        <p className="page-status" role="status">
+          Loading taxonomy…
+        </p>
       ) : (
         <div className="taxonomy-grid">
           <TaxonomyManager

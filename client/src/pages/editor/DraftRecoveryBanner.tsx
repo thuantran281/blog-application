@@ -14,8 +14,8 @@ export function DraftRecoveryBanner({
   onDiscard,
 }: DraftRecoveryBannerProps) {
   return (
-    <section className="draft-banner" role="status">
-      <div>
+    <section className="draft-banner" role="region" aria-label="Local draft recovery">
+      <div role="status" aria-live="polite">
         <strong>Local draft found</strong>
         <p className="muted">
           Saved {new Date(recovery.savedAt).toLocaleString()}. Recover it, or keep editing to

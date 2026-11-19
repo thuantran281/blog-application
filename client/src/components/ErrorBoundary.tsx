@@ -23,18 +23,20 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   render() {
     if (this.state.hasError) {
       return (
-        <div className="empty-state">
-          <h2>Something went wrong</h2>
-          <p className="muted">Reload the page, or go back to the home page.</p>
-          <div className="actions">
-            <button className="button" onClick={() => window.location.reload()}>
-              Reload
-            </button>
-            <a className="button button-secondary" href="/">
-              Go home
-            </a>
+        <main id="main-content" className="container main-content" tabIndex={-1}>
+          <div className="empty-state" role="alert">
+            <h1>Something went wrong</h1>
+            <p className="muted">Reload the page, or go back to the home page.</p>
+            <div className="actions">
+              <button type="button" className="button" onClick={() => window.location.reload()}>
+                Reload
+              </button>
+              <a className="button button-secondary" href="/">
+                Go home
+              </a>
+            </div>
           </div>
-        </div>
+        </main>
       )
     }
 

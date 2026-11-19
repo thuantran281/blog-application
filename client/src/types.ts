@@ -8,11 +8,6 @@ export interface AuthUser {
   role: UserRole
 }
 
-export interface AuthResponse {
-  user: AuthUser
-  token: string
-}
-
 export interface Category {
   id: string
   name: string

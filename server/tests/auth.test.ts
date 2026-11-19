@@ -54,6 +54,43 @@ describe('auth', () => {
     expect(sessionCookie).toMatch(/SameSite=Lax/i)
   })
 
+  it('registers a browser session without returning a token', async () => {
+    const agent = request.agent(app)
+    const res = await agent.post('/api/auth/browser/register').send({
+      username: 'browser_user',
+      email: 'browser@example.com',
+      password: 'password123',
+    })
+
+    expect(res.status).toBe(201)
+    expect(res.body.data.user).toMatchObject({
+      username: 'browser_user',
+      email: 'browser@example.com',
+    })
+    expect(res.body.data).not.toHaveProperty('token')
+    expect(cookieValue(res, 'blog_session')).toBeTruthy()
+    expect(cookieValue(res, 'blog_csrf')).toBeTruthy()
+
+    const me = await agent.get('/api/auth/me')
+    expect(me.status).toBe(200)
+    expect(me.body.data.email).toBe('browser@example.com')
+  })
+
+  it('logs in through the browser endpoint without returning a token', async () => {
+    const { user } = await registerUser()
+    const agent = request.agent(app)
+    const res = await agent
+      .post('/api/auth/browser/login')
+      .send({ email: user.email, password: user.password })
+
+    expect(res.status).toBe(200)
+    expect(res.body.data.user.email).toBe(user.email)
+    expect(res.body.data).not.toHaveProperty('token')
+
+    const me = await agent.get('/api/auth/me')
+    expect(me.status).toBe(200)
+  })
+
   it('creates a server-side session for each login', async () => {
     const { id, token } = await registerUser()
     const payload = jwt.decode(token) as { sid?: string }

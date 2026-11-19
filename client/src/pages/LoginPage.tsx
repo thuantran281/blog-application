@@ -39,7 +39,11 @@ export function LoginPage() {
         <h1>Welcome back</h1>
         <p className="muted">Log in to write, edit, and comment.</p>
 
-        {error && <p className="error">{error}</p>}
+        {error && (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        )}
 
         <form className="stack-sm" onSubmit={handleSubmit}>
           <label>

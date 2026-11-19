@@ -12,7 +12,11 @@ export function ProtectedRoute({ children, adminOnly = false }: ProtectedRoutePr
   const location = useLocation()
 
   if (loading) {
-    return <p className="page-status">Checking session…</p>
+    return (
+      <p className="page-status" role="status">
+        Checking session…
+      </p>
+    )
   }
 
   if (!user) {

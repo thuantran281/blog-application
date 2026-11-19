@@ -229,8 +229,10 @@ The tests use the admin credentials `postman_admin@example.com` / `password123` 
 | `GET` | `/sitemap.xml` | Public sitemap of published posts |
 | `GET` | `/rss.xml` | Public RSS feed of published posts |
 | `GET` | `/robots.txt` | Public crawler rules and sitemap reference |
-| `POST` | `/api/auth/register` | Public |
-| `POST` | `/api/auth/login` | Public |
+| `POST` | `/api/auth/register` | Public; API clients; returns a Bearer token |
+| `POST` | `/api/auth/login` | Public; API clients; returns a Bearer token |
+| `POST` | `/api/auth/browser/register` | Public; browser; sets cookies only |
+| `POST` | `/api/auth/browser/login` | Public; browser; sets cookies only |
 | `GET` | `/api/auth/csrf` | Public; issues a CSRF token |
 | `GET` | `/api/auth/me` | Authenticated |
 | `POST` | `/api/auth/logout` | Session cookie; clears auth cookies |
@@ -256,7 +258,7 @@ The tests use the admin credentials `postman_admin@example.com` / `password123` 
 
 `PATCH /api/posts/:id` must include the current post `version`. A stale version returns `409` with the current post in `details.current`. Post and comment creation accept an optional UUID `clientRequestId`; retrying with the same ID returns the previously created row instead of creating a duplicate. Post slugs stay stable after creation.
 
-Browser sessions use an httpOnly `blog_session` cookie. Unsafe requests authenticated by that cookie must send the readable `blog_csrf` cookie value in the `X-CSRF-Token` header. API clients can continue to use `Authorization: Bearer <token>`; Bearer requests do not require a CSRF token.
+Browser sessions use an httpOnly `blog_session` cookie. The browser client registers and logs in through `/api/auth/browser/register` and `/api/auth/browser/login`, which never return a JWT in JSON. Unsafe requests authenticated by the session cookie must send the readable `blog_csrf` cookie value in the `X-CSRF-Token` header. API clients can use `/api/auth/register` or `/api/auth/login` and `Authorization: Bearer <token>`; Bearer requests do not require a CSRF token.
 
 ## Testing
 
@@ -433,6 +435,6 @@ The most recent drill was run on 2026-11-14 against backup `20261114T035532`. Th
 - Build and start the server with `npm run build` and `npm start`.
 - Build the client with `npm run build` and serve `client/dist`.
 
-Browser authentication uses an httpOnly `blog_session` cookie with `SameSite=Lax`; the cookie is `Secure` when `NODE_ENV=production`. A readable `blog_csrf` cookie and the `X-CSRF-Token` header provide double-submit CSRF protection. The client no longer stores JWTs in `localStorage`, and the API still accepts Bearer tokens for scripts and API clients.
+Browser authentication uses an httpOnly `blog_session` cookie with `SameSite=Lax`; the cookie is `Secure` when `NODE_ENV=production`. A readable `blog_csrf` cookie and the `X-CSRF-Token` header provide double-submit CSRF protection. The browser client uses cookie-only auth endpoints and never receives a JWT in JSON; the API still returns Bearer tokens for scripts and API clients.
 
 JWTs are backed by server-side sessions. Logging out revokes the current session, and password resets revoke all sessions for that user.

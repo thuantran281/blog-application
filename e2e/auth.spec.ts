@@ -36,6 +36,25 @@ test.describe('authentication', () => {
     await expect(page).toHaveURL(/\/login$/)
   })
 
+  test('browser login never returns a JWT', async ({ page }) => {
+    const responsePromise = page.waitForResponse(
+      (response) =>
+        response.url().includes('/api/auth/browser/login') &&
+        response.request().method() === 'POST',
+    )
+
+    await loginViaUi(page)
+
+    const response = await responsePromise
+    const body = (await response.json()) as {
+      data: { user: { email: string }; token?: string }
+    }
+
+    expect(response.status()).toBe(200)
+    expect(body.data.user.email).toBe(adminCredentials.email)
+    expect(body.data.token).toBeUndefined()
+  })
+
   test('keeps the session after reload without storing a token', async ({ page }) => {
     await loginViaUi(page)
     await page.reload()

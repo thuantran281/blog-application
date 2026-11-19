@@ -7,7 +7,12 @@ import type { AuthUser, UserRole } from '../types/auth.js'
 import { HttpError } from './error.js'
 
 const ROLES: UserRole[] = ['admin', 'member', 'viewer']
-const UNAUTHENTICATED_AUTH_PATHS = new Set(['/api/auth/login', '/api/auth/register'])
+const UNAUTHENTICATED_AUTH_PATHS = new Set([
+  '/api/auth/login',
+  '/api/auth/register',
+  '/api/auth/browser/login',
+  '/api/auth/browser/register',
+])
 
 function isRole(value: unknown): value is UserRole {
   return typeof value === 'string' && ROLES.includes(value as UserRole)

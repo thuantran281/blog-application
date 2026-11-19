@@ -10,7 +10,7 @@ export function SaveStatus({ status }: SaveStatusProps) {
   }
 
   return (
-    <p className="save-status" data-state={status.state}>
+    <p className="save-status" data-state={status.state} role="status" aria-live="polite">
       {status.text}
     </p>
   )

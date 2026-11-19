@@ -18,11 +18,25 @@ import {
   thematicBreakPlugin,
   toolbarPlugin,
 } from '@mdxeditor/editor'
+import type { Translation } from '@mdxeditor/editor'
 import '@mdxeditor/editor/style.css'
 
 interface RichTextEditorProps {
   markdown: string
   onChange: (markdown: string) => void
+}
+
+const translation: Translation = (key, defaultValue, interpolations = {}) => {
+  if (key === 'contentArea.editableMarkdown') {
+    return 'Content'
+  }
+
+  let value = defaultValue
+  for (const [name, replacement] of Object.entries(interpolations)) {
+    value = value.replaceAll(`{{${name}}}`, String(replacement))
+  }
+
+  return value
 }
 
 export function RichTextEditor({ markdown, onChange }: RichTextEditorProps) {
@@ -34,6 +48,7 @@ export function RichTextEditor({ markdown, onChange }: RichTextEditorProps) {
       contentEditableClassName="mdx-editor-content markdown-body"
       placeholder="Write your story. Use the toolbar for headings, lists, links, and tables."
       suppressHtmlProcessing
+      translation={translation}
       plugins={[
         headingsPlugin(),
         listsPlugin(),

@@ -53,13 +53,21 @@ async function createUserSession(user: User): Promise<string> {
   return token
 }
 
-export async function register(req: Request, res: Response) {
-  const input = registerSchema.parse(req.body)
+async function startSession(res: Response, user: User): Promise<string> {
+  const token = await createUserSession(user)
 
-  let user: User
+  setSessionCookie(res, token)
+  issueCsrfCookie(res)
+  res.setHeader('Cache-Control', 'no-store')
+
+  return token
+}
+
+async function createRegisteredUser(body: unknown): Promise<User> {
+  const input = registerSchema.parse(body)
 
   try {
-    user = await createUser(input)
+    return await createUser(input)
   } catch (err) {
     if (err instanceof AuthConflictError) {
       throw new HttpError(409, err.message)
@@ -67,11 +75,23 @@ export async function register(req: Request, res: Response) {
 
     throw err
   }
+}
 
-  const token = await createUserSession(user)
-  setSessionCookie(res, token)
-  issueCsrfCookie(res)
-  res.setHeader('Cache-Control', 'no-store')
+async function authenticateLogin(body: unknown): Promise<User> {
+  const input = loginSchema.parse(body)
+  const user = await findUserByEmail(input.email)
+
+  if (!user || !(await verifyPassword(user, input.password))) {
+    throw new HttpError(401, 'Invalid email or password')
+  }
+
+  return user
+}
+
+export async function register(req: Request, res: Response) {
+  const user = await createRegisteredUser(req.body)
+  const token = await startSession(res, user)
+
   res.status(201).json({
     data: {
       user: toAuthUser(user),
@@ -80,24 +100,30 @@ export async function register(req: Request, res: Response) {
   })
 }
 
+export async function browserRegister(req: Request, res: Response) {
+  const user = await createRegisteredUser(req.body)
+
+  await startSession(res, user)
+  res.status(201).json({ data: { user: toAuthUser(user) } })
+}
+
 export async function login(req: Request, res: Response) {
-  const input = loginSchema.parse(req.body)
-  const user = await findUserByEmail(input.email)
+  const user = await authenticateLogin(req.body)
+  const token = await startSession(res, user)
 
-  if (!user || !(await verifyPassword(user, input.password))) {
-    throw new HttpError(401, 'Invalid email or password')
-  }
-
-  const token = await createUserSession(user)
-  setSessionCookie(res, token)
-  issueCsrfCookie(res)
-  res.setHeader('Cache-Control', 'no-store')
   res.json({
     data: {
       user: toAuthUser(user),
       token,
     },
   })
+}
+
+export async function browserLogin(req: Request, res: Response) {
+  const user = await authenticateLogin(req.body)
+
+  await startSession(res, user)
+  res.json({ data: { user: toAuthUser(user) } })
 }
 
 export async function me(req: Request, res: Response) {

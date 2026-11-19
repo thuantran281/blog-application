@@ -15,8 +15,8 @@ export function EditorPage({ mode }: EditorPageProps) {
 
   if (mode === 'edit' && !slug) {
     return (
-      <div className="empty-state">
-        <h2>Post not found</h2>
+      <div className="empty-state" role="alert">
+        <h1>Post not found</h1>
         <p className="muted">This edit link is missing a post slug.</p>
         <Link className="button" to="/my-posts">
           Back to my posts
@@ -45,7 +45,11 @@ function EditorSession({ mode, slug, user }: EditorSessionProps) {
   const editor = usePostEditor({ mode, slug, user })
 
   if (editor.loading) {
-    return <p className="page-status">Loading post…</p>
+    return (
+      <p className="page-status" role="status">
+        Loading post…
+      </p>
+    )
   }
 
   return (
@@ -63,7 +67,11 @@ function EditorSession({ mode, slug, user }: EditorSessionProps) {
         </Link>
       </section>
 
-      {editor.error && <p className="error">{editor.error}</p>}
+      {editor.error && (
+        <p className="error" role="alert">
+          {editor.error}
+        </p>
+      )}
 
       <EditorForm
         mode={mode}

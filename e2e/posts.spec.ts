@@ -2,7 +2,7 @@ import type { Page } from '@playwright/test'
 import { createPostViaApi, expect, loginViaUi, test } from './fixtures'
 
 function getEditor(page: Page) {
-  return page.getByRole('textbox', { name: 'editable markdown' })
+  return page.getByRole('textbox', { name: 'Content' })
 }
 
 async function setEditorContent(page: Page, markdown: string) {

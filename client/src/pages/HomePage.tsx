@@ -158,10 +158,16 @@ export function HomePage() {
         )}
       </section>
 
-      {error && <p className="error">{error}</p>}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
 
       {loading ? (
-        <p className="page-status">Loading posts…</p>
+        <p className="page-status" role="status">
+          Loading posts…
+        </p>
       ) : posts.length === 0 ? (
         <div className="empty-state">
           <h2>No posts yet</h2>

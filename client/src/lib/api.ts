@@ -1,5 +1,4 @@
 import type {
-  AuthResponse,
   AuthUser,
   Category,
   Comment,
@@ -24,6 +23,8 @@ const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
 const AUTH_ENDPOINTS = new Set([
   '/api/auth/login',
   '/api/auth/register',
+  '/api/auth/browser/login',
+  '/api/auth/browser/register',
   '/api/auth/me',
   '/api/auth/logout',
   '/api/auth/csrf',
@@ -144,14 +145,14 @@ export function getErrorMessage(error: unknown): string {
 
 export const api = {
   register(input: RegisterInput) {
-    return request<{ data: AuthResponse }>('/api/auth/register', {
+    return request<{ data: { user: AuthUser } }>('/api/auth/browser/register', {
       method: 'POST',
       body: JSON.stringify(input),
     }).then((response) => response.data)
   },
 
   login(input: LoginInput) {
-    return request<{ data: AuthResponse }>('/api/auth/login', {
+    return request<{ data: { user: AuthUser } }>('/api/auth/browser/login', {
       method: 'POST',
       body: JSON.stringify(input),
     }).then((response) => response.data)
