@@ -28,3 +28,9 @@ export const commentLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
   limit: 30,
 })
+
+export const reportLimiter = rateLimit({
+  ...commonOptions,
+  windowMs: 10 * 60 * 1000,
+  limit: 10,
+})

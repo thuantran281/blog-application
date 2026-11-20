@@ -12,6 +12,7 @@ import { csrfProtection } from './middleware/csrf.js'
 import { errorHandler, notFoundHandler } from './middleware/error.js'
 import { apiLimiter } from './middleware/rateLimit.js'
 import { requestLogger } from './middleware/requestLogger.js'
+import adminRoutes from './routes/admin.routes.js'
 import authRoutes from './routes/auth.routes.js'
 import categoryRoutes from './routes/category.routes.js'
 import commentRoutes from './routes/comment.routes.js'
@@ -52,6 +53,7 @@ function isKnownSpaPath(pathname: string): boolean {
     pathname === '/write' ||
     pathname === '/my-posts' ||
     pathname === '/admin/taxonomy' ||
+    pathname === '/admin/moderation' ||
     /^\/posts\/[^/]+$/.test(pathname) ||
     /^\/posts\/[^/]+\/edit$/.test(pathname)
   )
@@ -135,6 +137,7 @@ app.get('/', async (req, res, next) => {
 app.use(seoRoutes)
 
 app.use('/api/auth', authRoutes)
+app.use('/api/admin', adminRoutes)
 app.use('/api/categories', categoryRoutes)
 app.use('/api/tags', tagRoutes)
 app.use('/api/posts', postRoutes)

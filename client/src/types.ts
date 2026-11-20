@@ -65,6 +65,18 @@ export interface Comment {
   author_name: string
 }
 
+export interface ReportedComment {
+  comment_id: string
+  content: string
+  author_name: string | null
+  created_at: string
+  post_id: string
+  post_title: string
+  post_slug: string
+  report_count: number
+  last_reported_at: string
+}
+
 export interface PaginationMeta {
   page: number
   limit: number

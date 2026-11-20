@@ -9,6 +9,7 @@ import type {
   Post,
   PostSummary,
   RegisterInput,
+  ReportedComment,
   Tag,
   UpdatePostInput,
 } from '../types'
@@ -288,7 +289,20 @@ export const api = {
     }).then((response) => response.data)
   },
 
+  reportComment(id: string) {
+    return request<{ data: { comment_id: string; report_count: number } }>(
+      `/api/comments/${encodeURIComponent(id)}/report`,
+      { method: 'POST' },
+    ).then((response) => response.data)
+  },
+
   deleteComment(id: string) {
     return request<void>(`/api/comments/${encodeURIComponent(id)}`, { method: 'DELETE' })
+  },
+
+  listReports(params: { page?: number; limit?: number }): Promise<Paginated<ReportedComment>> {
+    return request<Paginated<ReportedComment>>(
+      `/api/admin/reports${toQuery({ page: params.page, limit: params.limit })}`,
+    )
   },
 }

@@ -381,6 +381,12 @@ img {
   color: var(--accent-strong);
 }
 
+.link-button:disabled {
+  color: var(--muted);
+  text-decoration: none;
+  cursor: default;
+}
+
 /* Typography helpers */
 
 .eyebrow {
@@ -909,6 +915,10 @@ button:focus-visible,
 
 .comment p {
   white-space: pre-wrap;
+}
+
+.comment .actions {
+  margin-top: 1rem;
 }
 
 .comment-form {

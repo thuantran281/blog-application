@@ -12,7 +12,7 @@ A full-stack blog platform with authentication, publishing workflows, comments, 
 - Markdown editor with headings, lists, links, tables, and sanitized rendering
 - Categories and tags with filtering
 - Admin-only category/tag management at `/admin/taxonomy`
-- Guest and member comments
+- Guest and member comments, with visitor reporting and admin moderation
 - Pagination, post filtering, and case-insensitive search by title or excerpt
 - RSS feed, XML sitemap, robots.txt, and per-post SEO metadata
 - Responsive React client with light/dark styling
@@ -254,9 +254,13 @@ The tests use the admin credentials `postman_admin@example.com` / `password123` 
 | `DELETE` | `/api/posts/:id` | Owner |
 | `GET` | `/api/posts/:slug/comments` | Public |
 | `POST` | `/api/posts/:slug/comments` | Public or authenticated |
-| `DELETE` | `/api/comments/:id` | Comment owner |
+| `POST` | `/api/comments/:id/report` | Public; rate limited; one per visitor |
+| `DELETE` | `/api/comments/:id` | Comment owner or admin |
+| `GET` | `/api/admin/reports` | Admin |
 
 `GET /api/posts?q=...` searches published posts case-insensitively by title and excerpt, alongside the `page`, `category`, and `tag` filters. Search terms are parameterized and their `LIKE` wildcards are escaped, so they are matched as literal text.
+
+Visitors can report any comment once. Repeated reports are deduplicated by a hashed visitor identifier (or user ID for members) and capped by a rate limit; raw IP addresses are not stored. Reports appear for admins at `/admin/moderation`, where the comment can be deleted. Deleting a comment removes its reports, and comments are not hidden automatically.
 
 `PATCH /api/posts/:id` must include the current post `version`. A stale version returns `409` with the current post in `details.current`. Post and comment creation accept an optional UUID `clientRequestId`; retrying with the same ID returns the previously created row instead of creating a duplicate. Post slugs stay stable after creation.
 

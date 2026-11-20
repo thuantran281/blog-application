@@ -30,6 +30,7 @@ export function PostDetailPage() {
 
   const [commentContent, setCommentContent] = useState('')
   const [guestName, setGuestName] = useState('')
+  const [reportedIds, setReportedIds] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
   const commentRequestRef = useRef<{ signature: string; id: string } | null>(null)
 
@@ -178,6 +179,17 @@ export function PostDetailPage() {
     }
   }
 
+  async function handleReportComment(id: string) {
+    setActionError(null)
+
+    try {
+      await api.reportComment(id)
+      setReportedIds((current) => (current.includes(id) ? current : [...current, id]))
+    } catch (reportError) {
+      setActionError(getErrorMessage(reportError))
+    }
+  }
+
   async function handleDeletePost() {
     if (!post || !window.confirm('Delete this post? This cannot be undone.')) {
       return
@@ -301,6 +313,14 @@ export function PostDetailPage() {
                     <div className="comment-head">
                       <strong>{comment.author_name}</strong>
                       <time dateTime={comment.created_at}>{formatDate(comment.created_at)}</time>
+                      <button
+                        type="button"
+                        className="link-button"
+                        disabled={reportedIds.includes(comment.id)}
+                        onClick={() => handleReportComment(comment.id)}
+                      >
+                        {reportedIds.includes(comment.id) ? 'Reported' : 'Report'}
+                      </button>
                       {canDelete && (
                         <button
                           type="button"

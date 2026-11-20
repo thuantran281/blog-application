@@ -47,7 +47,12 @@ export function Layout() {
             </NavLink>
             {user && <NavLink to="/my-posts">My posts</NavLink>}
             {user && <NavLink to="/write">Write</NavLink>}
-            {user?.role === 'admin' && <NavLink to="/admin/taxonomy">Taxonomy</NavLink>}
+            {user?.role === 'admin' && (
+              <>
+                <NavLink to="/admin/moderation">Moderation</NavLink>
+                <NavLink to="/admin/taxonomy">Taxonomy</NavLink>
+              </>
+            )}
           </nav>
 
           <form className="search-form" role="search" onSubmit={handleSearch}>
