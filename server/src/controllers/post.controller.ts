@@ -26,8 +26,8 @@ import {
 } from '../services/post.service.js'
 
 export async function listPosts(req: Request, res: Response) {
-  const { page, limit, category, tag } = listPostsQuerySchema.parse(req.query)
-  const result = await listPublishedPosts({ page, limit, category, tag })
+  const { page, limit, category, tag, q } = listPostsQuerySchema.parse(req.query)
+  const result = await listPublishedPosts({ page, limit, category, tag, q })
   res.json(result)
 }
 

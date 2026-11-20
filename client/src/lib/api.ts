@@ -177,6 +177,7 @@ export const api = {
     limit?: number
     category?: string
     tag?: string
+    q?: string
   }): Promise<Paginated<PostSummary>> {
     return request<Paginated<PostSummary>>(
       `/api/posts${toQuery({
@@ -184,6 +185,7 @@ export const api = {
         limit: params.limit,
         category: params.category,
         tag: params.tag,
+        q: params.q,
       })}`,
     )
   },

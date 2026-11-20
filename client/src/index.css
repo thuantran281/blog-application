@@ -226,6 +226,27 @@ img {
   font-weight: 600;
 }
 
+/* Search */
+
+.search-form {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1 1 240px;
+  max-width: 340px;
+}
+
+.search-form input {
+  min-width: 0;
+  padding-block: 0.5rem;
+  border-radius: 999px;
+  font-size: 0.9rem;
+}
+
+.search-form input::placeholder {
+  color: var(--muted);
+}
+
 .site-footer {
   border-top: 1px solid var(--border);
   color: var(--muted);
@@ -1156,6 +1177,12 @@ button:focus-visible,
   .main-nav {
     order: 3;
     width: 100%;
+  }
+
+  .search-form {
+    order: 4;
+    flex-basis: 100%;
+    max-width: none;
   }
 
   .my-post {

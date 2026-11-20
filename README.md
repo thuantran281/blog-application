@@ -13,7 +13,7 @@ A full-stack blog platform with authentication, publishing workflows, comments, 
 - Categories and tags with filtering
 - Admin-only category/tag management at `/admin/taxonomy`
 - Guest and member comments
-- Pagination and post filtering
+- Pagination, post filtering, and case-insensitive search by title or excerpt
 - RSS feed, XML sitemap, robots.txt, and per-post SEO metadata
 - Responsive React client with light/dark styling
 - Security headers, CORS allowlisting, rate limiting, request IDs, and health checks
@@ -246,7 +246,7 @@ The tests use the admin credentials `postman_admin@example.com` / `password123` 
 | `POST` | `/api/tags` | Admin |
 | `PATCH` | `/api/tags/:id` | Admin |
 | `DELETE` | `/api/tags/:id` | Admin |
-| `GET` | `/api/posts` | Public published posts |
+| `GET` | `/api/posts` | Public published posts; optional `q`, `category`, `tag`, `page`, `limit` |
 | `GET` | `/api/posts/mine` | Authenticated |
 | `GET` | `/api/posts/:slug` | Public; draft access for owner |
 | `POST` | `/api/posts` | Authenticated |
@@ -255,6 +255,8 @@ The tests use the admin credentials `postman_admin@example.com` / `password123` 
 | `GET` | `/api/posts/:slug/comments` | Public |
 | `POST` | `/api/posts/:slug/comments` | Public or authenticated |
 | `DELETE` | `/api/comments/:id` | Comment owner |
+
+`GET /api/posts?q=...` searches published posts case-insensitively by title and excerpt, alongside the `page`, `category`, and `tag` filters. Search terms are parameterized and their `LIKE` wildcards are escaped, so they are matched as literal text.
 
 `PATCH /api/posts/:id` must include the current post `version`. A stale version returns `409` with the current post in `details.current`. Post and comment creation accept an optional UUID `clientRequestId`; retrying with the same ID returns the previously created row instead of creating a duplicate. Post slugs stay stable after creation.
 

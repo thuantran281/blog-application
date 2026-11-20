@@ -228,4 +228,65 @@ describe('posts', () => {
 
     expect(drafts.body.meta.total).toBe(1)
   })
+
+  it('searches published posts by title and excerpt without matching drafts', async () => {
+    const { token } = await registerUser()
+    await createPost(token, {
+      title: 'Golden Retriever Care',
+      excerpt: 'A friendly guide to grooming',
+      status: 'published',
+    })
+    await createPost(token, {
+      title: 'Cat Care',
+      excerpt: 'Entirely unrelated',
+      status: 'published',
+    })
+    await createPost(token, {
+      title: 'Hidden Retriever Draft',
+      excerpt: 'Grooming secrets',
+      status: 'draft',
+    })
+
+    const byTitle = await request(app).get('/api/posts?q=retriever')
+    expect(byTitle.status).toBe(200)
+    expect(byTitle.body.data.map((post: { title: string }) => post.title)).toEqual([
+      'Golden Retriever Care',
+    ])
+
+    const byExcerpt = await request(app).get('/api/posts?q=GROOMING')
+    expect(byExcerpt.body.data.map((post: { title: string }) => post.title)).toEqual([
+      'Golden Retriever Care',
+    ])
+  })
+
+  it('paginates search results and reports an empty page for no matches', async () => {
+    const { token } = await registerUser()
+    await createPost(token, { title: 'Searchable One', status: 'published' })
+    await createPost(token, { title: 'Searchable Two', status: 'published' })
+
+    const firstPage = await request(app).get('/api/posts?q=searchable&limit=1&page=1')
+    expect(firstPage.body.meta).toMatchObject({ page: 1, limit: 1, total: 2, totalPages: 2 })
+
+    const secondPage = await request(app).get('/api/posts?q=searchable&limit=1&page=2')
+    expect(secondPage.body.meta).toMatchObject({ page: 2, limit: 1, total: 2, totalPages: 2 })
+    expect(secondPage.body.data[0].title).not.toBe(firstPage.body.data[0].title)
+
+    const noMatches = await request(app).get('/api/posts?q=does-not-exist')
+    expect(noMatches.body).toMatchObject({ data: [], meta: { total: 0, totalPages: 0 } })
+  })
+
+  it('treats search terms as literal text and resists SQL injection attempts', async () => {
+    const { token } = await registerUser()
+    await createPost(token, { title: 'Safe Post', status: 'published' })
+
+    for (const q of ["%' OR 1=1 --", "'; DROP TABLE posts; --", '_']) {
+      const res = await request(app).get(`/api/posts?q=${encodeURIComponent(q)}`)
+
+      expect(res.status).toBe(200)
+      expect(res.body.data).toEqual([])
+    }
+
+    const all = await request(app).get('/api/posts')
+    expect(all.body.data).toHaveLength(1)
+  })
 })

@@ -1,4 +1,5 @@
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
+import type { FormEvent } from 'react'
+import { Link, NavLink, Outlet, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/context'
 
 const currentYear = new Date().getFullYear()
@@ -6,10 +7,27 @@ const currentYear = new Date().getFullYear()
 export function Layout() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const urlQuery = searchParams.get('q') ?? ''
 
   async function handleLogout() {
     await logout()
     navigate('/')
+  }
+
+  function handleSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const query = String(new FormData(event.currentTarget).get('q') ?? '').trim()
+    const next = new URLSearchParams(searchParams)
+
+    if (query) {
+      next.set('q', query)
+    } else {
+      next.delete('q')
+    }
+
+    next.delete('page')
+    navigate(`/${next.size > 0 ? `?${next.toString()}` : ''}`)
   }
 
   return (
@@ -31,6 +49,23 @@ export function Layout() {
             {user && <NavLink to="/write">Write</NavLink>}
             {user?.role === 'admin' && <NavLink to="/admin/taxonomy">Taxonomy</NavLink>}
           </nav>
+
+          <form className="search-form" role="search" onSubmit={handleSearch}>
+            <label className="sr-only" htmlFor="post-search">
+              Search posts
+            </label>
+            <input
+              key={urlQuery}
+              id="post-search"
+              type="search"
+              name="q"
+              placeholder="Search posts"
+              defaultValue={urlQuery}
+            />
+            <button type="submit" className="button button-small">
+              Search
+            </button>
+          </form>
 
           <div className="auth-actions">
             {user ? (

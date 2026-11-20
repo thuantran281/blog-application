@@ -5,6 +5,12 @@ export const listPostsQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(50).default(10),
   category: z.string().trim().min(1).optional(),
   tag: z.string().trim().min(1).optional(),
+  q: z
+    .string()
+    .trim()
+    .max(200)
+    .optional()
+    .transform((value) => value || undefined),
 })
 
 export const myPostsQuerySchema = z.object({

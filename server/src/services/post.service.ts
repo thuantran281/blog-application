@@ -107,6 +107,7 @@ interface ListPostsParams {
   limit: number
   category?: string | undefined
   tag?: string | undefined
+  q?: string | undefined
 }
 
 interface ListMyPostsParams {
@@ -154,10 +155,13 @@ export async function listPublishedPosts({
   limit,
   category,
   tag,
+  q,
 }: ListPostsParams): Promise<PaginatedPosts> {
   const offset = (page - 1) * limit
   const categorySlug = category ?? null
   const tagSlug = tag ?? null
+  // Escape LIKE wildcards so a query is matched as literal text.
+  const searchPattern = q ? `%${q.replace(/[\\%_]/g, '\\$&')}%` : null
 
   const [posts, count] = await Promise.all([
     pool.query<PostSummary>(
@@ -173,9 +177,12 @@ export async function listPublishedPosts({
            JOIN tags t ON t.id = pt.tag_id
            WHERE pt.post_id = p.id AND t.slug = $4
          ))
+         AND ($5::text IS NULL
+           OR p.title ILIKE $5 ESCAPE '\\'
+           OR p.excerpt ILIKE $5 ESCAPE '\\')
        ORDER BY p.published_at DESC NULLS LAST, p.created_at DESC
        LIMIT $1 OFFSET $2`,
-      [limit, offset, categorySlug, tagSlug],
+      [limit, offset, categorySlug, tagSlug, searchPattern],
     ),
     pool.query<{ count: number }>(
       `SELECT COUNT(*)::int AS count
@@ -189,8 +196,11 @@ export async function listPublishedPosts({
            FROM post_tags pt
            JOIN tags t ON t.id = pt.tag_id
            WHERE pt.post_id = p.id AND t.slug = $2
-         ))`,
-      [categorySlug, tagSlug],
+         ))
+         AND ($3::text IS NULL
+           OR p.title ILIKE $3 ESCAPE '\\'
+           OR p.excerpt ILIKE $3 ESCAPE '\\')`,
+      [categorySlug, tagSlug, searchPattern],
     ),
   ])
 

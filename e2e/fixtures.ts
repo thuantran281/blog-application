@@ -54,7 +54,7 @@ export async function loginViaUi(page: Page): Promise<void> {
 
 export async function createPostViaApi(
   request: APIRequestContext,
-  input: { title: string; content: string; status?: 'draft' | 'published' },
+  input: { title: string; content: string; excerpt?: string; status?: 'draft' | 'published' },
 ): Promise<CreatedPost> {
   const auth = await apiLogin(request)
   const response = await request.post('/api/posts', {
@@ -64,6 +64,7 @@ export async function createPostViaApi(
     data: {
       title: input.title,
       content: input.content,
+      excerpt: input.excerpt,
       status: input.status ?? 'published',
       displayName: auth.user.username,
     },

@@ -17,6 +17,7 @@ export function HomePage() {
   const page = Number.isInteger(pageParam) && pageParam > 0 ? pageParam : 1
   const category = searchParams.get('category') ?? ''
   const tag = searchParams.get('tag') ?? ''
+  const query = searchParams.get('q') ?? ''
 
   const [posts, setPosts] = useState<PostSummary[]>([])
   const [meta, setMeta] = useState<PaginationMeta | null>(null)
@@ -55,11 +56,13 @@ export function HomePage() {
         limit: PAGE_SIZE,
         category: category || undefined,
         tag: tag || undefined,
+        q: query || undefined,
       })
       .then((result) => {
         if (!cancelled) {
           setPosts(result.data)
           setMeta(result.meta)
+          setError(null)
         }
       })
       .catch((loadError: unknown) => {
@@ -76,7 +79,7 @@ export function HomePage() {
     return () => {
       cancelled = true
     }
-  }, [page, category, tag])
+  }, [page, category, tag, query])
 
   usePageMeta({
     title: DEFAULT_TITLE,
@@ -151,12 +154,18 @@ export function HomePage() {
           </select>
         </label>
 
-        {(category || tag) && (
+        {(category || tag || query) && (
           <button type="button" className="link-button" onClick={clearFilters}>
             Clear filters
           </button>
         )}
       </section>
+
+      {query && !loading && (
+        <p className="muted" role="status">
+          {posts.length > 0 ? `Posts matching “${query}”` : `No posts match “${query}”`}
+        </p>
+      )}
 
       {error && (
         <p className="error" role="alert">
@@ -170,8 +179,12 @@ export function HomePage() {
         </p>
       ) : posts.length === 0 ? (
         <div className="empty-state">
-          <h2>No posts yet</h2>
-          <p className="muted">Try a different filter, or be the first to publish.</p>
+          <h2>{query ? 'No posts found' : 'No posts yet'}</h2>
+          <p className="muted">
+            {query
+              ? 'Try a different search term, or clear your filters.'
+              : 'Try a different filter, or be the first to publish.'}
+          </p>
         </div>
       ) : (
         <div className="post-grid">

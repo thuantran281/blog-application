@@ -118,6 +118,37 @@ test.describe('posts and comments', () => {
     expect(xssValue).toBeUndefined()
   })
 
+  test('searches published posts from the shared header', async ({ page, request, e2eRun }) => {
+    const searchTerm = `needle${Date.now()}`
+    const matchingTitle = `${e2eRun.prefix} ${searchTerm}`
+    const otherTitle = `${e2eRun.prefix} unrelated`
+
+    await createPostViaApi(request, {
+      title: matchingTitle,
+      content: 'A post that should appear in search results.',
+      excerpt: `Contains ${searchTerm}`,
+    })
+    await createPostViaApi(request, {
+      title: otherTitle,
+      content: 'A post that should not appear in search results.',
+    })
+
+    await page.goto('/')
+
+    const searchbox = page.getByRole('searchbox', { name: 'Search posts' })
+    await searchbox.fill(searchTerm)
+    await page.getByRole('button', { name: 'Search' }).click()
+
+    await expect(page).toHaveURL(new RegExp(`q=${searchTerm}`))
+    await expect(page.getByRole('link', { name: matchingTitle })).toBeVisible()
+    await expect(page.getByRole('link', { name: otherTitle })).toHaveCount(0)
+    await expect(searchbox).toHaveValue(searchTerm)
+
+    await page.getByRole('button', { name: 'Clear filters' }).click()
+    await expect(page).toHaveURL(/\/$/)
+    await expect(searchbox).toHaveValue('')
+  })
+
   test('allows a guest to comment on a published post', async ({ page, request, e2eRun }) => {
     const title = `${e2eRun.prefix} comment post`
     const comment = 'A guest comment from Playwright.'
