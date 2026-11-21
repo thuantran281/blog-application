@@ -1092,6 +1092,31 @@ button:focus-visible,
   font-size: 0.8rem;
 }
 
+.user-actions {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.user-actions select {
+  min-width: 130px;
+}
+
+.user-reset-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  flex-basis: 100%;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.user-reset-form label {
+  max-width: 320px;
+}
+
 /* Admin taxonomy */
 
 .taxonomy-grid {

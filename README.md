@@ -12,6 +12,7 @@ A full-stack blog platform with authentication, publishing workflows, comments, 
 - Markdown editor with headings, lists, links, tables, and sanitized rendering
 - Categories and tags with filtering
 - Admin-only category/tag management at `/admin/taxonomy`
+- Admin-only user management at `/admin/users` with role changes and password resets
 - Guest and member comments, with visitor reporting and admin moderation
 - Pagination, post filtering, and case-insensitive search by title or excerpt
 - RSS feed, XML sitemap, robots.txt, and per-post SEO metadata
@@ -257,10 +258,15 @@ The tests use the admin credentials `postman_admin@example.com` / `password123` 
 | `POST` | `/api/comments/:id/report` | Public; rate limited; one per visitor |
 | `DELETE` | `/api/comments/:id` | Comment owner or admin |
 | `GET` | `/api/admin/reports` | Admin |
+| `GET` | `/api/admin/users` | Admin |
+| `PATCH` | `/api/admin/users/:id/role` | Admin |
+| `POST` | `/api/admin/users/:id/reset-password` | Admin |
 
 `GET /api/posts?q=...` searches published posts case-insensitively by title and excerpt, alongside the `page`, `category`, and `tag` filters. Search terms are parameterized and their `LIKE` wildcards are escaped, so they are matched as literal text.
 
 Visitors can report any comment once. Repeated reports are deduplicated by a hashed visitor identifier (or user ID for members) and capped by a rate limit; raw IP addresses are not stored. Reports appear for admins at `/admin/moderation`, where the comment can be deleted. Deleting a comment removes its reports, and comments are not hidden automatically.
+
+Admins can change another user's role or reset their password at `/admin/users`, mirroring the `promote-admin` and `reset-password` scripts. Both actions revoke the affected user's sessions, and admins cannot change their own role or password there. The CLI scripts remain available for local recovery.
 
 `PATCH /api/posts/:id` must include the current post `version`. A stale version returns `409` with the current post in `details.current`. Post and comment creation accept an optional UUID `clientRequestId`; retrying with the same ID returns the previously created row instead of creating a duplicate. Post slugs stay stable after creation.
 

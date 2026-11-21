@@ -51,6 +51,7 @@ export function Layout() {
               <>
                 <NavLink to="/admin/moderation">Moderation</NavLink>
                 <NavLink to="/admin/taxonomy">Taxonomy</NavLink>
+                <NavLink to="/admin/users">Users</NavLink>
               </>
             )}
           </nav>

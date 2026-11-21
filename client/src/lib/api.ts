@@ -1,4 +1,5 @@
 import type {
+  AdminUser,
   AuthUser,
   Category,
   Comment,
@@ -12,6 +13,7 @@ import type {
   ReportedComment,
   Tag,
   UpdatePostInput,
+  UserRole,
 } from '../types'
 
 const API_URL = (
@@ -304,5 +306,39 @@ export const api = {
     return request<Paginated<ReportedComment>>(
       `/api/admin/reports${toQuery({ page: params.page, limit: params.limit })}`,
     )
+  },
+
+  listUsers(params: {
+    page?: number
+    limit?: number
+    q?: string
+  }): Promise<Paginated<AdminUser>> {
+    return request<Paginated<AdminUser>>(
+      `/api/admin/users${toQuery({
+        page: params.page,
+        limit: params.limit,
+        q: params.q,
+      })}`,
+    )
+  },
+
+  updateUserRole(id: string, role: UserRole) {
+    return request<{ data: AdminUser }>(
+      `/api/admin/users/${encodeURIComponent(id)}/role`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ role }),
+      },
+    ).then((response) => response.data)
+  },
+
+  resetUserPassword(id: string, password: string, confirmPassword: string) {
+    return request<{ data: AdminUser }>(
+      `/api/admin/users/${encodeURIComponent(id)}/reset-password`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ password, confirmPassword }),
+      },
+    ).then((response) => response.data)
   },
 }

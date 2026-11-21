@@ -54,6 +54,7 @@ function isKnownSpaPath(pathname: string): boolean {
     pathname === '/my-posts' ||
     pathname === '/admin/taxonomy' ||
     pathname === '/admin/moderation' ||
+    pathname === '/admin/users' ||
     /^\/posts\/[^/]+$/.test(pathname) ||
     /^\/posts\/[^/]+\/edit$/.test(pathname)
   )

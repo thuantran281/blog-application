@@ -5,6 +5,7 @@ import { Layout } from './components/Layout'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { AdminModerationPage } from './pages/AdminModerationPage'
 import { AdminTaxonomyPage } from './pages/AdminTaxonomyPage'
+import { AdminUsersPage } from './pages/AdminUsersPage'
 import { EditorPage } from './pages/EditorPage'
 import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
@@ -59,6 +60,14 @@ export default function App() {
                 element={
                   <ProtectedRoute adminOnly>
                     <AdminModerationPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="admin/users"
+                element={
+                  <ProtectedRoute adminOnly>
+                    <AdminUsersPage />
                   </ProtectedRoute>
                 }
               />

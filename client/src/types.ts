@@ -8,6 +8,11 @@ export interface AuthUser {
   role: UserRole
 }
 
+export interface AdminUser extends AuthUser {
+  created_at: string
+  updated_at: string
+}
+
 export interface Category {
   id: string
   name: string

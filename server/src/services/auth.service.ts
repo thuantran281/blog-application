@@ -38,7 +38,7 @@ function isUniqueViolation(err: unknown): boolean {
 }
 
 export async function createUser({ username, email, password }: CreateUserParams): Promise<User> {
-  const passwordHash = await bcrypt.hash(password, SALT_ROUNDS)
+  const passwordHash = await hashPassword(password)
 
   try {
     const result = await pool.query<User>(
@@ -86,6 +86,10 @@ export async function findUserById(id: string): Promise<User | null> {
   )
 
   return result.rows[0] ?? null
+}
+
+export function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, SALT_ROUNDS)
 }
 
 export function verifyPassword(user: UserWithPassword, password: string): Promise<boolean> {
