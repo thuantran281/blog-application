@@ -349,11 +349,26 @@ One-time setup:
 
 ```powershell
 fly apps create thuantran-blog-staging
-fly volumes create blog_uploads --region sin --size 1 -a thuantran-blog-staging
 fly postgres create --name thuan-tran-blog-db --region sin --initial-cluster-size 1
+fly volumes create blog_uploads --region sin --size 1 -a thuantran-blog-staging
 ```
 
-`fly.toml` mounts `blog_uploads` at `/app/uploads`, and `UPLOAD_DIR` points there, so images survive deploys and machine restarts. Fly volumes are attached to a single machine; keep `min_machines_running` at `1` or lower until moving to object storage if you scale out.
+`fly.toml` mounts `blog_uploads` at `/app/uploads`, and `UPLOAD_DIR` points there, so images survive deploys and machine restarts. Fly volumes are attached to a single machine and are not shared, so keep this app at one machine with local storage:
+
+```powershell
+fly scale count 1 -a thuantran-blog-staging
+fly deploy --remote-only
+```
+
+For an existing app that already has multiple machines, Fly requires one `blog_uploads` volume per machine before it will deploy. The deploy error reports the required count, for example `sin=2`:
+
+```powershell
+fly volumes create blog_uploads --region sin --size 1 -a thuantran-blog-staging --count 2
+fly scale count 1 -a thuantran-blog-staging
+fly deploy --remote-only
+```
+
+After the deploy, `fly volumes list -a thuantran-blog-staging` shows one attached volume; the extra unattached volume can be destroyed. Do not scale beyond one machine unless moving uploads to shared object storage.
 
 Set the staging secrets using the database password from the previous command:
 
