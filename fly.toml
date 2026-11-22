@@ -10,6 +10,11 @@ primary_region = "sin"
   CLIENT_DIST_PATH = "/app/public"
   TRUST_PROXY = "true"
   LOG_LEVEL = "info"
+  UPLOAD_DIR = "/app/uploads"
+
+[mounts]
+  source = "blog_uploads"
+  destination = "/app/uploads"
 
 [http_service]
   internal_port = 8080

@@ -1,3 +1,5 @@
+import { readdir, rm, stat } from 'node:fs/promises'
+import path from 'node:path'
 import type { Page } from '@playwright/test'
 import { createPostViaApi, expect, loginViaUi, test } from './fixtures'
 
@@ -9,6 +11,33 @@ async function setEditorContent(page: Page, markdown: string) {
   const editor = getEditor(page)
   await editor.click()
   await editor.fill(markdown)
+}
+
+const PNG_BASE64 =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg=='
+
+async function cleanupRecentUploads(since: number) {
+  const uploadDir = path.resolve(process.cwd(), 'server/uploads')
+  let entries
+
+  try {
+    entries = await readdir(uploadDir, { withFileTypes: true })
+  } catch {
+    return
+  }
+
+  for (const entry of entries) {
+    if (!entry.isFile()) {
+      continue
+    }
+
+    const filePath = path.join(uploadDir, entry.name)
+    const details = await stat(filePath)
+
+    if (details.mtimeMs >= since) {
+      await rm(filePath, { force: true })
+    }
+  }
 }
 
 async function getStoredDraft(page: Page) {
@@ -62,6 +91,54 @@ test.describe('posts and comments', () => {
     await expect(page.getByRole('link', { name: updatedTitle })).toHaveCount(0)
   })
 
+  test('uploads an image from the editor and renders it in the post', async ({
+    page,
+    e2eRun,
+  }) => {
+    const startedAt = Date.now() - 1000
+    const title = `${e2eRun.prefix} image post`
+
+    try {
+      await loginViaUi(page)
+      await page.goto('/write')
+
+      await page.getByLabel('Title').fill(title)
+      await getEditor(page).click()
+
+      const uploadResponse = page.waitForResponse(
+        (response) =>
+          response.url().includes('/api/uploads') && response.request().method() === 'POST',
+      )
+
+      await page.getByRole('button', { name: 'Insert image' }).click()
+      await page.locator('input[type="file"]').setInputFiles({
+        name: 'pixel.png',
+        mimeType: 'image/png',
+        buffer: Buffer.from(PNG_BASE64, 'base64'),
+      })
+      await page.getByLabel('Alt:').fill('Uploaded pixel')
+      await page.getByRole('button', { name: 'Save', exact: true }).click()
+
+      const response = await uploadResponse
+      expect(response.status()).toBe(201)
+      const body = (await response.json()) as { data: { url: string } }
+      expect(body.data.url).toMatch(/^\/uploads\/[0-9a-f-]+\.png$/)
+
+      await expect(getEditor(page).locator('img[src^="/uploads/"]')).toBeVisible()
+
+      await page.getByLabel('Status').selectOption('published')
+      await page.getByRole('button', { name: 'Create post' }).click()
+
+      await expect(page).toHaveURL(/\/posts\//)
+      await expect(page.getByRole('heading', { name: title })).toBeVisible()
+      await expect(
+        page.locator('.post-content img[src^="/uploads/"][alt="Uploaded pixel"]'),
+      ).toBeVisible()
+    } finally {
+      await cleanupRecentUploads(startedAt)
+    }
+  })
+
   test('recovers a locally saved draft after a reload', async ({ page, e2eRun }) => {
     const title = `${e2eRun.prefix} recovered draft`
     const draftContent = 'This draft has not been submitted to the server.'
@@ -99,6 +176,8 @@ test.describe('posts and comments', () => {
         '',
         '**Bold text** and [a link](https://example.com).',
         '',
+        '![External image](https://example.com/external.png)',
+        '',
         '<script>window.__E2E_XSS__ = true</script>',
       ].join('\n'),
     })
@@ -110,6 +189,9 @@ test.describe('posts and comments', () => {
     await expect(page.getByRole('table')).toBeVisible()
     await expect(page.getByRole('cell', { name: 'One' })).toBeVisible()
     await expect(page.getByText('Bold text', { exact: true })).toBeVisible()
+    await expect(
+      page.locator('.post-content img[src="https://example.com/external.png"]'),
+    ).toBeVisible()
     await expect(page.locator('.post-content script')).toHaveCount(0)
 
     const xssValue = await page.evaluate(

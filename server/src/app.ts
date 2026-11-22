@@ -19,6 +19,7 @@ import commentRoutes from './routes/comment.routes.js'
 import postRoutes from './routes/post.routes.js'
 import seoRoutes from './routes/seo.routes.js'
 import tagRoutes from './routes/tag.routes.js'
+import uploadRoutes from './routes/upload.routes.js'
 import { findPostForSeo } from './services/seo.service.js'
 
 function isAllowedOrigin(origin: string | undefined) {
@@ -82,7 +83,16 @@ if (env.TRUST_PROXY) {
 }
 
 app.use(requestLogger)
-app.use(helmet())
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      useDefaults: true,
+      directives: {
+        'img-src': ["'self'", 'data:', 'https:'],
+      },
+    },
+  }),
+)
 app.use(
   cors({
     origin(origin, callback) {
@@ -143,6 +153,21 @@ app.use('/api/categories', categoryRoutes)
 app.use('/api/tags', tagRoutes)
 app.use('/api/posts', postRoutes)
 app.use('/api/comments', commentRoutes)
+app.use('/api/uploads', uploadRoutes)
+
+app.use(
+  '/uploads',
+  express.static(path.resolve(env.UPLOAD_DIR), {
+    immutable: true,
+    maxAge: '1y',
+    setHeaders(res) {
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin')
+    },
+  }),
+)
+app.use('/uploads', (req, res) => {
+  res.status(404).json({ error: 'Not found' })
+})
 
 if (clientBuildPath) {
   app.use(

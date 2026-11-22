@@ -49,3 +49,7 @@ desktop.ini
 # custom files
 opencode.json
 footnote.txt
+
+# Local uploads
+server/uploads/
+server/uploads-test/

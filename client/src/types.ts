@@ -132,3 +132,10 @@ export interface CreateCommentInput {
   guestName?: string
   clientRequestId?: string
 }
+
+export interface UploadedImage {
+  url: string
+  filename: string
+  mimeType: string
+  byteSize: number
+}

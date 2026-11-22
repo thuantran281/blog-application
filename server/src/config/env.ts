@@ -1,3 +1,4 @@
+import path from 'node:path'
 import dotenv from 'dotenv'
 import { z } from 'zod'
 
@@ -17,6 +18,19 @@ const envSchema = z.object({
   CORS_ORIGINS: z.string().optional(),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error', 'silent']).default('info'),
   JSON_BODY_LIMIT: z.string().min(1).max(32).default('100kb'),
+  UPLOAD_DIR: z.string().min(1).default(path.resolve(process.cwd(), 'uploads')),
+  MAX_UPLOAD_BYTES: z.coerce
+    .number()
+    .int()
+    .min(1024)
+    .max(10 * 1024 * 1024)
+    .default(5 * 1024 * 1024),
+  UPLOAD_CLEANUP_GRACE_MINUTES: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .max(24 * 60)
+    .default(60),
   CLIENT_DIST_PATH: z.string().min(1).optional(),
   TRUST_PROXY: z
     .enum(['true', 'false'])

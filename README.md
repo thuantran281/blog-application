@@ -9,7 +9,7 @@ A full-stack blog platform with authentication, publishing workflows, comments, 
 - Local draft backup and recovery, plus bounded autosave for existing posts
 - Optimistic post concurrency (`version`) and idempotent post/comment retries
 - Per-post bylines: username, custom display name, or anonymous
-- Markdown editor with headings, lists, links, tables, and sanitized rendering
+- Markdown editor with headings, lists, links, tables, image uploads, and sanitized rendering
 - Categories and tags with filtering
 - Admin-only category/tag management at `/admin/taxonomy`
 - Admin-only user management at `/admin/users` with role changes and password resets
@@ -158,6 +158,9 @@ VITE_API_URL=http://localhost:3000
 | `JWT_EXPIRES_IN` | No | `7d` | Session and token lifetime |
 | `CORS_ORIGINS` | Production | local dev origins | Comma-separated allowed browser origins |
 | `JSON_BODY_LIMIT` | No | `100kb` | Maximum JSON request body size |
+| `UPLOAD_DIR` | No | `uploads` in the server working directory | Directory for local image uploads |
+| `MAX_UPLOAD_BYTES` | No | `5242880` | Maximum uploaded image size in bytes |
+| `UPLOAD_CLEANUP_GRACE_MINUTES` | No | `60` | Minimum age before an unreferenced upload can be cleaned up |
 | `CLIENT_DIST_PATH` | No | - | Serve the built client from this directory |
 | `ADMIN_USERNAME` | Seed only | - | Admin username for `seed-admin` |
 | `ADMIN_EMAIL` | Seed only | - | Admin email for `seed-admin` |
@@ -185,6 +188,7 @@ VITE_API_URL=http://localhost:3000
 | `npm run seed-admin` | Create or reset an admin from `ADMIN_*` variables |
 | `npm run promote-admin -- <email-or-username>` | Promote an existing user |
 | `npm run reset-password -- <email-or-username>` | Set a new password for an existing user |
+| `npm run uploads:cleanup` | Delete uploaded files that are older than the grace period and unreferenced by posts |
 | `npm test` | Run server tests |
 | `npm run test:watch` | Run tests in watch mode |
 | `npm run test:api` | Run the Newman API collection against a running server |
@@ -261,12 +265,16 @@ The tests use the admin credentials `postman_admin@example.com` / `password123` 
 | `GET` | `/api/admin/users` | Admin |
 | `PATCH` | `/api/admin/users/:id/role` | Admin |
 | `POST` | `/api/admin/users/:id/reset-password` | Admin |
+| `POST` | `/api/uploads` | Authenticated; rate limited; multipart image upload |
+| `GET` | `/uploads/:filename` | Public; locally stored image |
 
 `GET /api/posts?q=...` searches published posts case-insensitively by title and excerpt, alongside the `page`, `category`, and `tag` filters. Search terms are parameterized and their `LIKE` wildcards are escaped, so they are matched as literal text.
 
 Visitors can report any comment once. Repeated reports are deduplicated by a hashed visitor identifier (or user ID for members) and capped by a rate limit; raw IP addresses are not stored. Reports appear for admins at `/admin/moderation`, where the comment can be deleted. Deleting a comment removes its reports, and comments are not hidden automatically.
 
 Admins can change another user's role or reset their password at `/admin/users`, mirroring the `promote-admin` and `reset-password` scripts. Both actions revoke the affected user's sessions, and admins cannot change their own role or password there. The CLI scripts remain available for local recovery.
+
+The editor's Insert image button uploads PNG, JPEG, GIF, or WebP files to `UPLOAD_DIR`, validates both the declared type and the file signature, caps uploads at `MAX_UPLOAD_BYTES`, and inserts the returned `/uploads/...` URL as Markdown. External image URLs are still supported in Markdown and are allowed by the content security policy. Uploads are rate limited to 30 per hour. Run `npm run uploads:cleanup` periodically to remove files that are older than `UPLOAD_CLEANUP_GRACE_MINUTES` and no longer referenced by any post.
 
 `PATCH /api/posts/:id` must include the current post `version`. A stale version returns `409` with the current post in `details.current`. Post and comment creation accept an optional UUID `clientRequestId`; retrying with the same ID returns the previously created row instead of creating a duplicate. Post slugs stay stable after creation.
 
@@ -341,8 +349,11 @@ One-time setup:
 
 ```powershell
 fly apps create thuantran-blog-staging
+fly volumes create blog_uploads --region sin --size 1 -a thuantran-blog-staging
 fly postgres create --name thuan-tran-blog-db --region sin --initial-cluster-size 1
 ```
+
+`fly.toml` mounts `blog_uploads` at `/app/uploads`, and `UPLOAD_DIR` points there, so images survive deploys and machine restarts. Fly volumes are attached to a single machine; keep `min_machines_running` at `1` or lower until moving to object storage if you scale out.
 
 Set the staging secrets using the database password from the previous command:
 
@@ -378,7 +389,7 @@ If `thuantran-blog-staging` is unavailable, change the `app` value in `fly.toml`
 
 ### Database backups
 
-The staging Postgres cluster uses Fly WAL archiving to Tigris. It keeps a 7-day recovery window and creates full backups every 24 hours.
+The staging Postgres cluster uses Fly WAL archiving to Tigris. It keeps a 7-day recovery window and creates full backups every 24 hours. Uploaded images live on the Fly volume, not in Postgres, so they are not included in these backups.
 
 ```powershell
 fly postgres backup config show -a thuan-tran-blog-db
@@ -442,6 +453,7 @@ The most recent drill was run on 2026-11-14 against backup `20261114T035532`. Th
 - Set `TRUST_PROXY=true` when the API is behind a trusted reverse proxy.
 - Set `CLIENT_DIST_PATH` to serve the built client from the API on the same origin.
 - Run `npm run db:migrate` before starting a new deployment.
+- Mount a persistent volume at `UPLOAD_DIR` and schedule `npm run uploads:cleanup`; uploaded images are not part of database backups.
 - Serve the API over HTTPS through a reverse proxy.
 - Use `/health/live` for process checks and `/health/ready` for database-backed readiness checks.
 - Build and start the server with `npm run build` and `npm start`.

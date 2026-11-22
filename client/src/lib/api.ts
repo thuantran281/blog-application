@@ -13,6 +13,7 @@ import type {
   ReportedComment,
   Tag,
   UpdatePostInput,
+  UploadedImage,
   UserRole,
 } from '../types'
 
@@ -102,7 +103,11 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     }
   }
 
-  if (init.body !== undefined && !headers.has('Content-Type')) {
+  if (
+    init.body !== undefined &&
+    !(typeof FormData !== 'undefined' && init.body instanceof FormData) &&
+    !headers.has('Content-Type')
+  ) {
     headers.set('Content-Type', 'application/json')
   }
 
@@ -229,6 +234,15 @@ export const api = {
 
   deletePost(id: string) {
     return request<void>(`/api/posts/${encodeURIComponent(id)}`, { method: 'DELETE' })
+  },
+
+  uploadImage(file: File) {
+    const body = new FormData()
+    body.append('image', file)
+
+    return request<{ data: UploadedImage }>('/api/uploads', { method: 'POST', body }).then(
+      (response) => response.data,
+    )
   },
 
   listCategories() {

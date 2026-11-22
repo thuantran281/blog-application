@@ -2,6 +2,7 @@ import {
   BlockTypeSelect,
   BoldItalicUnderlineToggles,
   CreateLink,
+  InsertImage,
   InsertTable,
   InsertThematicBreak,
   ListsToggle,
@@ -9,6 +10,7 @@ import {
   Separator,
   UndoRedo,
   headingsPlugin,
+  imagePlugin,
   linkDialogPlugin,
   linkPlugin,
   listsPlugin,
@@ -20,6 +22,7 @@ import {
 } from '@mdxeditor/editor'
 import type { Translation } from '@mdxeditor/editor'
 import '@mdxeditor/editor/style.css'
+import { api } from '../lib/api'
 
 interface RichTextEditorProps {
   markdown: string
@@ -46,7 +49,7 @@ export function RichTextEditor({ markdown, onChange }: RichTextEditorProps) {
       onChange={onChange}
       className="mdx-editor"
       contentEditableClassName="mdx-editor-content markdown-body"
-      placeholder="Write your story. Use the toolbar for headings, lists, links, and tables."
+      placeholder="Write your story. Use the toolbar for headings, lists, links, tables, and images."
       suppressHtmlProcessing
       translation={translation}
       plugins={[
@@ -57,6 +60,9 @@ export function RichTextEditor({ markdown, onChange }: RichTextEditorProps) {
         tablePlugin(),
         linkPlugin(),
         linkDialogPlugin(),
+        imagePlugin({
+          imageUploadHandler: async (file) => (await api.uploadImage(file)).url,
+        }),
         markdownShortcutPlugin(),
         toolbarPlugin({
           toolbarContents: () => (
@@ -70,6 +76,7 @@ export function RichTextEditor({ markdown, onChange }: RichTextEditorProps) {
               <ListsToggle />
               <Separator />
               <CreateLink />
+              <InsertImage />
               <InsertTable />
               <InsertThematicBreak />
             </>

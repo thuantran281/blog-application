@@ -34,3 +34,9 @@ export const reportLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
   limit: 10,
 })
+
+export const uploadLimiter = rateLimit({
+  ...commonOptions,
+  windowMs: 60 * 60 * 1000,
+  limit: 30,
+})
